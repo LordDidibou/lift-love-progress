@@ -43,6 +43,7 @@ export type Database = {
           created_at: string
           equipment: string
           id: string
+          image_url: string | null
           instructions: string | null
           is_custom: boolean
           muscle_group: string
@@ -53,6 +54,7 @@ export type Database = {
           created_at?: string
           equipment: string
           id?: string
+          image_url?: string | null
           instructions?: string | null
           is_custom?: boolean
           muscle_group: string
@@ -63,6 +65,7 @@ export type Database = {
           created_at?: string
           equipment?: string
           id?: string
+          image_url?: string | null
           instructions?: string | null
           is_custom?: boolean
           muscle_group?: string
