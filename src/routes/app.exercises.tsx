@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Search, Plus, X, Dumbbell } from "lucide-react";
+import { Search, Plus, X, Dumbbell, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -93,27 +93,7 @@ function ExercisesPage() {
 
       <div className="grid gap-2 md:grid-cols-2">
         {filtered.map((ex) => (
-          <div
-            key={ex.id}
-            className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-primary">
-                <Dumbbell className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="font-semibold">{ex.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {ex.muscle_group} · {ex.equipment}
-                </div>
-              </div>
-            </div>
-            {ex.is_custom && (
-              <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
-                Custom
-              </span>
-            )}
-          </div>
+          <ExerciseCard key={ex.id} ex={ex} />
         ))}
         {filtered.length === 0 && (
           <div className="col-span-full rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -131,6 +111,75 @@ function ExercisesPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+type Exercise = {
+  id: string;
+  name: string;
+  muscle_group: string;
+  equipment: string;
+  is_custom: boolean;
+  image_url: string | null;
+};
+
+function ExerciseCard({ ex }: { ex: Exercise }) {
+  const qc = useQueryClient();
+  const genMut = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-exercise-image", {
+        body: { exerciseId: ex.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { image_url: string };
+    },
+    onSuccess: () => {
+      toast.success("Image générée");
+      qc.invalidateQueries({ queryKey: ["exercises"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-secondary text-primary">
+          {ex.image_url ? (
+            <img src={ex.image_url} alt={ex.name} className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <Dumbbell className="h-5 w-5" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate font-semibold">{ex.name}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {ex.muscle_group} · {ex.equipment}
+          </div>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {ex.is_custom && (
+          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+            Custom
+          </span>
+        )}
+        {!ex.image_url && (
+          <button
+            onClick={() => genMut.mutate()}
+            disabled={genMut.isPending}
+            title="Générer une image"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-primary hover:bg-secondary disabled:opacity-50"
+          >
+            {genMut.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
