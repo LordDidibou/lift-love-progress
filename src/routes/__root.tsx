@@ -7,8 +7,12 @@ import {
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { useEffect, useMemo } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth-context";
+import { OfflineIndicator, registerServiceWorker } from "@/lib/pwa";
 
 import appCss from "../styles.css?url";
 
@@ -53,9 +57,16 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a4167d47-6f89-47f7-a204-b0bf5222c96d" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
+      { name: "theme-color", content: "#0a0a0a" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "FORGE" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon-512.png" },
+      { rel: "icon", type: "image/png", href: "/icon-512.png" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap",
@@ -83,12 +94,38 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
+  const persister = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return createSyncStoragePersister({
+      storage: window.localStorage,
+      key: "forge-rq-cache",
+      throttleTime: 1000,
+    });
+  }, []);
+
+  const inner = (
+    <AuthProvider>
+      <OfflineIndicator />
+      <Outlet />
+      <Toaster theme="dark" position="top-center" richColors />
+    </AuthProvider>
+  );
+
+  if (!persister) {
+    return <QueryClientProvider client={queryClient}>{inner}</QueryClientProvider>;
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster theme="dark" position="top-center" richColors />
-      </AuthProvider>
-    </QueryClientProvider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 14 }}
+    >
+      {inner}
+    </PersistQueryClientProvider>
   );
 }

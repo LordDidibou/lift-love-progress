@@ -31,7 +31,15 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,
+        gcTime: 1000 * 60 * 60 * 24 * 14, // 14j pour persister cache offline
+        refetchOnWindowFocus: false,
+        networkMode: "offlineFirst",
+      },
+      mutations: { networkMode: "offlineFirst" },
+    },
   });
   const router = createRouter({
     routeTree,
