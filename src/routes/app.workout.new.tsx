@@ -213,7 +213,7 @@ function NewWorkoutPage() {
                             ? {
                                 ...x,
                                 sets: x.sets.map((y, j) =>
-                                  j === sIdx ? { ...y, reps: Math.round(v) } : y,
+                                  j === sIdx ? { ...y, reps: v } : y,
                                 ),
                               }
                             : x,
