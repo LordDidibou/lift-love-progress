@@ -93,27 +93,7 @@ function ExercisesPage() {
 
       <div className="grid gap-2 md:grid-cols-2">
         {filtered.map((ex) => (
-          <div
-            key={ex.id}
-            className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary text-primary">
-                <Dumbbell className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="font-semibold">{ex.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {ex.muscle_group} · {ex.equipment}
-                </div>
-              </div>
-            </div>
-            {ex.is_custom && (
-              <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
-                Custom
-              </span>
-            )}
-          </div>
+          <ExerciseCard key={ex.id} ex={ex} />
         ))}
         {filtered.length === 0 && (
           <div className="col-span-full rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
