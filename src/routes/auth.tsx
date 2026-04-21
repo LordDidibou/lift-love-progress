@@ -3,11 +3,16 @@ import { Dumbbell, Eye, EyeOff } from "lucide-react";
 import { useState, useEffect, type FormEvent } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { canOpenOfflineApp, getFriendlyError, isOfflineClient } from "@/lib/offline";
 
 export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/app" });
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session || canOpenOfflineApp()) throw redirect({ to: "/app" });
+    } catch {
+      if (canOpenOfflineApp()) throw redirect({ to: "/app" });
+    }
   },
   component: AuthPage,
 });
@@ -28,6 +33,21 @@ function AuthPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isOfflineClient()) {
+      if (mode === "signin" && canOpenOfflineApp()) {
+        toast.info("Mode hors ligne : ouverture de l'app avec les données déjà présentes");
+        navigate({ to: "/app" });
+        return;
+      }
+      toast.error(
+        mode === "forgot"
+          ? "Internet est nécessaire pour envoyer un lien de réinitialisation"
+          : mode === "signup"
+            ? "Internet est nécessaire pour créer un compte"
+            : "Connecte-toi une première fois avec Internet pour ouvrir l'app hors ligne",
+      );
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "forgot") {
@@ -56,7 +76,9 @@ function AuthPage() {
         navigate({ to: "/app" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur d'authentification");
+      toast.error(
+        getFriendlyError(err, "Action impossible hors ligne", "Erreur d'authentification"),
+      );
     } finally {
       setLoading(false);
     }

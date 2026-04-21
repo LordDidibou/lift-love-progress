@@ -1,11 +1,16 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Dumbbell, TrendingUp, ListChecks, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { canOpenOfflineApp } from "@/lib/offline";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/app" });
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session || canOpenOfflineApp()) throw redirect({ to: "/app" });
+    } catch {
+      if (canOpenOfflineApp()) throw redirect({ to: "/app" });
+    }
   },
   component: Landing,
 });

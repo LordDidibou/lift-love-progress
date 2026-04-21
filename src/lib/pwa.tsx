@@ -3,24 +3,40 @@ import { WifiOff } from "lucide-react";
 
 export function OfflineIndicator() {
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const on = () => {
+      setOnline(true);
+      setVisible(false);
+      if (timeout) clearTimeout(timeout);
+    };
+    const off = () => {
+      setOnline(false);
+      setVisible(true);
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => setVisible(false), 3500);
+    };
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
     return () => {
+      if (timeout) clearTimeout(timeout);
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
     };
   }, []);
 
-  if (online) return null;
+  if (online || !visible) return null;
   return (
-    <div className="fixed left-1/2 top-2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-card">
+    <button
+      type="button"
+      onClick={() => setVisible(false)}
+      className="fixed left-1/2 top-2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-card"
+    >
       <WifiOff className="h-3.5 w-3.5 text-accent" />
-      Hors ligne — tes données seront synchronisées
-    </div>
+      Hors ligne
+    </button>
   );
 }
 
