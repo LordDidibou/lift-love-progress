@@ -26,6 +26,32 @@ function ProfilePage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [weight, setWeight] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const changePassword = async () => {
+    if (newPassword.length < 6) {
+      toast.error("Mot de passe trop court (6 min)");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Mot de passe mis à jour");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   const { data: weights = [] } = useQuery({
     queryKey: ["body_weights", user?.id],
