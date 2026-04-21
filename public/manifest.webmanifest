@@ -1,0 +1,19 @@
+{
+  "name": "FORGE",
+  "short_name": "FORGE",
+  "description": "Log tes séances, suis ta progression. Mode hors-ligne.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
