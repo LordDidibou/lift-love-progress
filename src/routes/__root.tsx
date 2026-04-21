@@ -38,12 +38,21 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FORGE — Suivi de musculation" },
+      { title: "FORGE" },
       {
         name: "description",
         content:
           "FORGE : log tes séances, suis ta progression, crée tes programmes. L'app de musculation rapide et belle.",
       },
+      { property: "og:title", content: "FORGE" },
+      { name: "twitter:title", content: "FORGE" },
+      { name: "description", content: "Pour devenir énorme et sec" },
+      { property: "og:description", content: "Pour devenir énorme et sec" },
+      { name: "twitter:description", content: "Pour devenir énorme et sec" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a4167d47-6f89-47f7-a204-b0bf5222c96d" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/a4167d47-6f89-47f7-a204-b0bf5222c96d" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
