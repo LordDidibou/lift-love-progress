@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { DecimalInput } from "@/components/DecimalInput";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
@@ -187,19 +188,15 @@ function NewWorkoutPage() {
                   }`}
                 >
                   <span className="text-center text-sm font-bold text-muted-foreground">{sIdx + 1}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={set.weight || ""}
-                    onChange={(e) =>
+                  <DecimalInput
+                    value={set.weight}
+                    onValueChange={(v) =>
                       setItems((s) =>
                         s.map((x, i) =>
                           i === exIdx
                             ? {
                                 ...x,
-                                sets: x.sets.map((y, j) =>
-                                  j === sIdx ? { ...y, weight: Number(e.target.value) } : y,
-                                ),
+                                sets: x.sets.map((y, j) => (j === sIdx ? { ...y, weight: v } : y)),
                               }
                             : x,
                         ),
@@ -207,18 +204,16 @@ function NewWorkoutPage() {
                     }
                     className="rounded-md border border-input bg-background px-2 py-2 text-center text-sm focus:border-primary focus:outline-none"
                   />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={set.reps || ""}
-                    onChange={(e) =>
+                  <DecimalInput
+                    value={set.reps}
+                    onValueChange={(v) =>
                       setItems((s) =>
                         s.map((x, i) =>
                           i === exIdx
                             ? {
                                 ...x,
                                 sets: x.sets.map((y, j) =>
-                                  j === sIdx ? { ...y, reps: Number(e.target.value) } : y,
+                                  j === sIdx ? { ...y, reps: Math.round(v) } : y,
                                 ),
                               }
                             : x,

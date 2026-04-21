@@ -16,6 +16,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { DecimalInput } from "@/components/DecimalInput";
 
 export const Route = createFileRoute("/app/profile")({
   component: ProfilePage,
@@ -42,7 +43,7 @@ function ProfilePage() {
   const addMut = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Non connecté");
-      const w = Number(weight);
+      const w = Number(String(weight).replace(",", "."));
       if (!w || w <= 0) throw new Error("Poids invalide");
       const { error } = await supabase.from("body_weights").insert({ user_id: user.id, weight: w });
       if (error) throw error;
@@ -104,12 +105,10 @@ function ProfilePage() {
         </div>
 
         <div className="mt-5 flex gap-2">
-          <input
-            type="number"
-            step="0.1"
-            placeholder="Ton poids (kg)"
+          <DecimalInput
             value={weight}
-            onChange={(e) => setWeight(e.target.value)}
+            onValueChange={(v) => setWeight(v ? String(v) : "")}
+            placeholder="Ton poids (ex: 72,5)"
             className="flex-1 rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
           />
           <button
