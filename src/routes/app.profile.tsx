@@ -200,6 +200,40 @@ function ProfilePage() {
           </div>
         )}
       </section>
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+        <div className="mb-4 flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-bold">Changer mon mot de passe</h2>
+        </div>
+        <div className="space-y-3">
+          <input
+            type="password"
+            placeholder="Nouveau mot de passe"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={6}
+            className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+          />
+          <input
+            type="password"
+            placeholder="Confirmer"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={6}
+            className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+          />
+          <button
+            onClick={changePassword}
+            disabled={pwLoading || !newPassword || !confirmPassword}
+            className="w-full rounded-md bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {pwLoading ? "..." : "Mettre à jour"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
