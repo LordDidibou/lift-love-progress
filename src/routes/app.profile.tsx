@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Scale, Plus, Trash2 } from "lucide-react";
+import { Scale, Plus, Trash2, KeyRound } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -26,6 +26,32 @@ function ProfilePage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [weight, setWeight] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const changePassword = async () => {
+    if (newPassword.length < 6) {
+      toast.error("Mot de passe trop court (6 min)");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Mot de passe mis à jour");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   const { data: weights = [] } = useQuery({
     queryKey: ["body_weights", user?.id],
@@ -173,6 +199,40 @@ function ProfilePage() {
             </div>
           </div>
         )}
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+        <div className="mb-4 flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-bold">Changer mon mot de passe</h2>
+        </div>
+        <div className="space-y-3">
+          <input
+            type="password"
+            placeholder="Nouveau mot de passe"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={6}
+            className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+          />
+          <input
+            type="password"
+            placeholder="Confirmer"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={6}
+            className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+          />
+          <button
+            onClick={changePassword}
+            disabled={pwLoading || !newPassword || !confirmPassword}
+            className="w-full rounded-md bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {pwLoading ? "..." : "Mettre à jour"}
+          </button>
+        </div>
       </section>
     </div>
   );

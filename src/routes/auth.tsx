@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Dumbbell } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,28 +13,45 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("forge:remembered_email") : null;
+    if (saved) setEmail(saved);
+  }, []);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "signup") {
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast.success("Email de réinitialisation envoyé !");
+        setMode("signin");
+      } else if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${window.location.origin}/app` },
         });
         if (error) throw error;
+        if (remember) localStorage.setItem("forge:remembered_email", email);
+        else localStorage.removeItem("forge:remembered_email");
         toast.success("Compte créé !");
         navigate({ to: "/app" });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (remember) localStorage.setItem("forge:remembered_email", email);
+        else localStorage.removeItem("forge:remembered_email");
         navigate({ to: "/app" });
       }
     } catch (err) {
@@ -54,25 +71,27 @@ function AuthPage() {
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold">FORGE</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "signin" ? "Reprends ta séance" : "Lance-toi maintenant"}
+            {mode === "signin" ? "Reprends ta séance" : mode === "signup" ? "Lance-toi maintenant" : "Réinitialise ton mot de passe"}
           </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-          <div className="mb-6 grid grid-cols-2 gap-1 rounded-md bg-secondary p-1">
-            {(["signin", "signup"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`rounded px-3 py-2 text-sm font-semibold transition-colors ${
-                  mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-                }`}
-              >
-                {m === "signin" ? "Connexion" : "Inscription"}
-              </button>
-            ))}
-          </div>
+          {mode !== "forgot" && (
+            <div className="mb-6 grid grid-cols-2 gap-1 rounded-md bg-secondary p-1">
+              {(["signin", "signup"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`rounded px-3 py-2 text-sm font-semibold transition-colors ${
+                    mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                  }`}
+                >
+                  {m === "signin" ? "Connexion" : "Inscription"}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
@@ -82,31 +101,69 @@ function AuthPage() {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Mot de passe
+            {mode !== "forgot" && (
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Mot de passe
+                  </label>
+                  {mode === "signin" && (
+                    <button
+                      type="button"
+                      onClick={() => setMode("forgot")}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Oublié ?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                />
+              </div>
+            )}
+
+            {mode !== "forgot" && (
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                Se souvenir de mon email
               </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-              />
-            </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-md bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-glow transition-transform hover:scale-[1.01] disabled:opacity-50"
             >
-              {loading ? "..." : mode === "signin" ? "Se connecter" : "Créer mon compte"}
+              {loading ? "..." : mode === "signin" ? "Se connecter" : mode === "signup" ? "Créer mon compte" : "Envoyer le lien"}
             </button>
+
+            {mode === "forgot" && (
+              <button
+                type="button"
+                onClick={() => setMode("signin")}
+                className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                ← Retour à la connexion
+              </button>
+            )}
           </form>
         </div>
       </div>
