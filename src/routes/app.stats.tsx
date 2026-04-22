@@ -243,29 +243,62 @@ function StatsPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card sm:p-5">
         <div className="mb-4 flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Progression par exercice
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Progression par exercice
+            </h2>
+            <span className="text-[10px] text-muted-foreground">
+              {exerciseIds.length}/{MAX_EXERCISES}
+            </span>
+          </div>
+
+          {selectedExercises.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedExercises.map((ex, idx) => (
+                <span
+                  key={ex.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: SERIES_COLORS[idx % SERIES_COLORS.length] }}
+                  />
+                  <span className="max-w-[140px] truncate">{ex.name}</span>
+                  <button
+                    onClick={() => removeExercise(ex.id)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Retirer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div ref={searchRef} className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              value={selectedExercise && !showSuggestions ? selectedExercise.name : exerciseQuery}
+              value={exerciseQuery}
               onChange={(e) => {
                 setExerciseQuery(e.target.value);
                 setShowSuggestions(true);
-                if (exerciseId) setExerciseId("");
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Rechercher un exercice…"
-              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-9 text-sm focus:border-primary focus:outline-none"
+              disabled={!canAddMore}
+              placeholder={
+                canAddMore
+                  ? "Ajouter un exercice à comparer…"
+                  : `Maximum ${MAX_EXERCISES} exercices`
+              }
+              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-9 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
             />
-            {(selectedExercise || exerciseQuery) && (
+            {exerciseQuery && (
               <button
                 onClick={() => {
-                  setExerciseId("");
                   setExerciseQuery("");
                   setShowSuggestions(false);
                 }}
@@ -275,16 +308,12 @@ function StatsPage() {
                 <X className="h-4 w-4" />
               </button>
             )}
-            {showSuggestions && suggestions.length > 0 && (
+            {showSuggestions && canAddMore && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-card shadow-lg">
                 {suggestions.map((e) => (
                   <button
                     key={e.id}
-                    onClick={() => {
-                      setExerciseId(e.id);
-                      setExerciseQuery("");
-                      setShowSuggestions(false);
-                    }}
+                    onClick={() => addExercise(e.id)}
                     className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
                   >
                     <span className="truncate">{e.name}</span>
@@ -295,13 +324,13 @@ function StatsPage() {
             )}
           </div>
         </div>
-        <div className="h-64">
+        <div className="h-72 w-full">
           {exerciseProgress.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={exerciseProgress}>
+              <LineChart data={exerciseProgress} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.012 240)" />
                 <XAxis dataKey="date" tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" />
-                <YAxis tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" />
+                <YAxis tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" width={36} />
                 <Tooltip
                   contentStyle={{
                     background: "oklch(0.18 0.012 240)",
@@ -310,20 +339,28 @@ function StatsPage() {
                     fontSize: 12,
                   }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="max"
-                  stroke="oklch(0.88 0.22 130)"
-                  strokeWidth={3}
-                  dot={{ fill: "oklch(0.88 0.22 130)", r: 4 }}
-                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {selectedExercises.map((ex, idx) => {
+                  const color = SERIES_COLORS[idx % SERIES_COLORS.length];
+                  return (
+                    <Line
+                      key={ex.id}
+                      type="monotone"
+                      dataKey={ex.name}
+                      stroke={color}
+                      strokeWidth={2.5}
+                      dot={{ fill: color, r: 3 }}
+                      connectNulls
+                    />
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
-              {exerciseId
-                ? "Aucune donnée pour cet exercice sur la période"
-                : "Recherche un exercice pour voir ta progression"}
+              {exerciseIds.length > 0
+                ? "Aucune donnée pour ces exercices sur la période"
+                : "Ajoute un exercice pour voir ta progression"}
             </div>
           )}
         </div>
