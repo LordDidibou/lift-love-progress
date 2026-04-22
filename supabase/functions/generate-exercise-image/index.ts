@@ -33,8 +33,8 @@ serve(async (req) => {
       });
     }
 
-    // Prompt minimaliste, cohérent avec le design dark/lime
-    const prompt = `A minimalist flat illustration of a person performing the strength exercise "${ex.name}" using ${ex.equipment}, targeting ${ex.muscle_group}. Clean vector style, single subject, side profile, lime green (#e1ff01) accent on the active muscles, neutral dark grey body, transparent or near-black background, no text, no watermark, centered composition, sport pictogram aesthetic.`;
+    // Prompt pédagogique : mouvement clair + muscles ciblés mis en évidence
+    const prompt = `Educational fitness illustration showing a person performing the strength exercise "${ex.name}" using ${ex.equipment}. Side-view anatomical pictogram, clean modern flat vector style. The figure clearly demonstrates the correct movement and posture. The targeted muscle group (${ex.muscle_group}) is highlighted in vivid lime green (#e1ff01) with a subtle anatomical glow, while the rest of the body is rendered in neutral dark grey (#3a3a3a) with light outlines. Dark near-black background (#0f0f12). Single centered subject, no text, no watermark, no logos, no background props. Modern sport-app pictogram aesthetic, instructional and easy to read.`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
