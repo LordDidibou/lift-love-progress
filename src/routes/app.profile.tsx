@@ -31,6 +31,49 @@ function ProfilePage() {
   const [pwLoading, setPwLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [originalName, setOriginalName] = useState("");
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (profile?.display_name !== undefined && profile?.display_name !== null) {
+      setDisplayName(profile.display_name);
+      setOriginalName(profile.display_name);
+    }
+  }, [profile?.display_name]);
+
+  const renameMut = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Non connecté");
+      const trimmed = displayName.trim();
+      if (!trimmed) throw new Error("Nom vide");
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: trimmed })
+        .eq("id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Nom mis à jour");
+      setOriginalName(displayName.trim());
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+
 
   const changePassword = async () => {
     if (newPassword.length < 6) {
