@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Scale, Plus, Trash2, KeyRound, Eye, EyeOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Scale, Plus, Trash2, KeyRound, Eye, EyeOff, User, Check } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
