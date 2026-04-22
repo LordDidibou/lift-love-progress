@@ -11,6 +11,7 @@ import {
   Tooltip,
   BarChart,
   Bar,
+  Legend,
 } from "recharts";
 import { format, subDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -115,17 +116,36 @@ function StatsPage() {
     }));
   }, [filteredWorkouts, rangeDays]);
 
+  // Pour chaque exercice sélectionné, on construit une série de points {date, [name]: max}
+  // puis on fusionne par date pour Recharts.
   const exerciseProgress = useMemo(() => {
-    if (!exerciseId) return [];
-    const points: { date: string; max: number }[] = [];
+    if (exerciseIds.length === 0) return [] as Array<Record<string, string | number>>;
+    const byDate = new Map<string, Record<string, string | number>>();
     filteredWorkouts.forEach((w) => {
-      const sets = (w.workout_sets ?? []).filter((s) => s.exercise_id === exerciseId);
-      if (sets.length === 0) return;
-      const max = Math.max(...sets.map((s) => Number(s.weight)));
-      points.push({ date: format(new Date(w.started_at), "d MMM", { locale: fr }), max });
+      const dateKey = format(new Date(w.started_at), "yyyy-MM-dd");
+      const dateLabel = format(new Date(w.started_at), "d MMM", { locale: fr });
+      exerciseIds.forEach((exId) => {
+        const sets = (w.workout_sets ?? []).filter((s) => s.exercise_id === exId);
+        if (sets.length === 0) return;
+        const max = Math.max(...sets.map((s) => Number(s.weight)));
+        const existing = byDate.get(dateKey) ?? { date: dateLabel };
+        const exName = exercises.find((e) => e.id === exId)?.name ?? exId;
+        existing[exName] = max;
+        byDate.set(dateKey, existing);
+      });
     });
-    return points;
-  }, [filteredWorkouts, exerciseId]);
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([, v]) => v);
+  }, [filteredWorkouts, exerciseIds, exercises]);
+
+  const selectedExercises = useMemo(
+    () =>
+      exerciseIds
+        .map((id) => exercises.find((e) => e.id === id))
+        .filter((e): e is { id: string; name: string; muscle_group: string } => !!e),
+    [exerciseIds, exercises],
+  );
 
   const totals = useMemo(() => {
     const totalSets = filteredWorkouts.reduce((a, w) => a + (w.workout_sets?.length ?? 0), 0);
@@ -136,14 +156,15 @@ function StatsPage() {
     return { totalSets, totalVol: Math.round(totalVol) };
   }, [filteredWorkouts]);
 
-  // Suggestions d'exercices
+  // Suggestions d'exercices (en excluant ceux déjà choisis)
   const suggestions = useMemo(() => {
     const q = exerciseQuery.toLowerCase().trim();
-    if (!q) return exercises.slice(0, 8);
-    return exercises
+    const base = exercises.filter((e) => !exerciseIds.includes(e.id));
+    if (!q) return base.slice(0, 8);
+    return base
       .filter((e) => e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q))
       .slice(0, 10);
-  }, [exercises, exerciseQuery]);
+  }, [exercises, exerciseQuery, exerciseIds]);
 
   // Fermer suggestions au clic extérieur
   useEffect(() => {
@@ -156,8 +177,17 @@ function StatsPage() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const selectedExercise = exercises.find((e) => e.id === exerciseId);
   const rangeLabel = RANGE_OPTIONS.find((r) => r.value === rangeDays)?.label ?? `${rangeDays} j`;
+  const canAddMore = exerciseIds.length < MAX_EXERCISES;
+
+  const addExercise = (id: string) => {
+    setExerciseIds((cur) => (cur.includes(id) || cur.length >= MAX_EXERCISES ? cur : [...cur, id]));
+    setExerciseQuery("");
+    setShowSuggestions(false);
+  };
+  const removeExercise = (id: string) => {
+    setExerciseIds((cur) => cur.filter((x) => x !== id));
+  };
 
   return (
     <div className="space-y-8">
