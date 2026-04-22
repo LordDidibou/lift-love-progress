@@ -1,20 +1,37 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { useAuth } from "@/lib/auth-context";
 import { canOpenOfflineApp } from "@/lib/offline";
 
 export const Route = createFileRoute("/app")({
-  beforeLoad: async () => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session && !canOpenOfflineApp()) throw redirect({ to: "/auth" });
-    } catch {
-      if (!canOpenOfflineApp()) throw redirect({ to: "/auth" });
+  component: AppGuard,
+});
+
+function AppGuard() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user && !canOpenOfflineApp()) {
+      navigate({ to: "/auth" });
     }
-  },
-  component: () => (
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Chargement…</div>
+      </div>
+    );
+  }
+
+  if (!user && !canOpenOfflineApp()) return null;
+
+  return (
     <AppLayout>
       <Outlet />
     </AppLayout>
-  ),
-});
+  );
+}
