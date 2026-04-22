@@ -134,25 +134,13 @@ function NewWorkoutPage() {
   });
 
   return (
-    <div className="space-y-5 pb-8">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-5 pb-28">
+      <div className="flex items-center gap-3">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 bg-transparent text-2xl font-bold focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-2xl font-bold focus:outline-none"
         />
-        <button
-          onClick={() => {
-            if (totalDoneSets === 0) {
-              if (!confirm("Aucune série validée. Terminer quand même ?")) return;
-            }
-            finishMut.mutate();
-          }}
-          disabled={finishMut.isPending}
-          className="flex items-center gap-2 rounded-md bg-gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-glow disabled:opacity-50"
-        >
-          <Check className="h-4 w-4" /> Terminer
-        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
