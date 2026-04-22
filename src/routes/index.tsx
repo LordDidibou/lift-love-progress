@@ -9,6 +9,14 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (user || canOpenOfflineApp()) navigate({ to: "/app" });
+  }, [user, loading, navigate]);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       <div className="absolute inset-0 bg-gradient-hero" />
