@@ -32,9 +32,19 @@ const RANGE_OPTIONS = [
   { value: 360, label: "1 an" },
 ] as const;
 
+const SERIES_COLORS = [
+  "oklch(0.88 0.22 130)",
+  "oklch(0.72 0.20 30)",
+  "oklch(0.70 0.20 260)",
+  "oklch(0.75 0.22 330)",
+  "oklch(0.78 0.18 80)",
+];
+
+const MAX_EXERCISES = 5;
+
 function StatsPage() {
   const { user } = useAuth();
-  const [exerciseId, setExerciseId] = useState<string>("");
+  const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [exerciseQuery, setExerciseQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [rangeDays, setRangeDays] = useState<number>(14);
