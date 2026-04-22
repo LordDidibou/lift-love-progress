@@ -11,6 +11,7 @@ import {
   Tooltip,
   BarChart,
   Bar,
+  Legend,
 } from "recharts";
 import { format, subDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -32,9 +33,19 @@ const RANGE_OPTIONS = [
   { value: 360, label: "1 an" },
 ] as const;
 
+const SERIES_COLORS = [
+  "oklch(0.88 0.22 130)",
+  "oklch(0.72 0.20 30)",
+  "oklch(0.70 0.20 260)",
+  "oklch(0.75 0.22 330)",
+  "oklch(0.78 0.18 80)",
+];
+
+const MAX_EXERCISES = 5;
+
 function StatsPage() {
   const { user } = useAuth();
-  const [exerciseId, setExerciseId] = useState<string>("");
+  const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [exerciseQuery, setExerciseQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [rangeDays, setRangeDays] = useState<number>(14);
@@ -105,17 +116,36 @@ function StatsPage() {
     }));
   }, [filteredWorkouts, rangeDays]);
 
+  // Pour chaque exercice sélectionné, on construit une série de points {date, [name]: max}
+  // puis on fusionne par date pour Recharts.
   const exerciseProgress = useMemo(() => {
-    if (!exerciseId) return [];
-    const points: { date: string; max: number }[] = [];
+    if (exerciseIds.length === 0) return [] as Array<Record<string, string | number>>;
+    const byDate = new Map<string, Record<string, string | number>>();
     filteredWorkouts.forEach((w) => {
-      const sets = (w.workout_sets ?? []).filter((s) => s.exercise_id === exerciseId);
-      if (sets.length === 0) return;
-      const max = Math.max(...sets.map((s) => Number(s.weight)));
-      points.push({ date: format(new Date(w.started_at), "d MMM", { locale: fr }), max });
+      const dateKey = format(new Date(w.started_at), "yyyy-MM-dd");
+      const dateLabel = format(new Date(w.started_at), "d MMM", { locale: fr });
+      exerciseIds.forEach((exId) => {
+        const sets = (w.workout_sets ?? []).filter((s) => s.exercise_id === exId);
+        if (sets.length === 0) return;
+        const max = Math.max(...sets.map((s) => Number(s.weight)));
+        const existing = byDate.get(dateKey) ?? { date: dateLabel };
+        const exName = exercises.find((e) => e.id === exId)?.name ?? exId;
+        existing[exName] = max;
+        byDate.set(dateKey, existing);
+      });
     });
-    return points;
-  }, [filteredWorkouts, exerciseId]);
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([, v]) => v);
+  }, [filteredWorkouts, exerciseIds, exercises]);
+
+  const selectedExercises = useMemo(
+    () =>
+      exerciseIds
+        .map((id) => exercises.find((e) => e.id === id))
+        .filter((e): e is { id: string; name: string; muscle_group: string } => !!e),
+    [exerciseIds, exercises],
+  );
 
   const totals = useMemo(() => {
     const totalSets = filteredWorkouts.reduce((a, w) => a + (w.workout_sets?.length ?? 0), 0);
@@ -126,14 +156,15 @@ function StatsPage() {
     return { totalSets, totalVol: Math.round(totalVol) };
   }, [filteredWorkouts]);
 
-  // Suggestions d'exercices
+  // Suggestions d'exercices (en excluant ceux déjà choisis)
   const suggestions = useMemo(() => {
     const q = exerciseQuery.toLowerCase().trim();
-    if (!q) return exercises.slice(0, 8);
-    return exercises
+    const base = exercises.filter((e) => !exerciseIds.includes(e.id));
+    if (!q) return base.slice(0, 8);
+    return base
       .filter((e) => e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q))
       .slice(0, 10);
-  }, [exercises, exerciseQuery]);
+  }, [exercises, exerciseQuery, exerciseIds]);
 
   // Fermer suggestions au clic extérieur
   useEffect(() => {
@@ -146,8 +177,17 @@ function StatsPage() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const selectedExercise = exercises.find((e) => e.id === exerciseId);
   const rangeLabel = RANGE_OPTIONS.find((r) => r.value === rangeDays)?.label ?? `${rangeDays} j`;
+  const canAddMore = exerciseIds.length < MAX_EXERCISES;
+
+  const addExercise = (id: string) => {
+    setExerciseIds((cur) => (cur.includes(id) || cur.length >= MAX_EXERCISES ? cur : [...cur, id]));
+    setExerciseQuery("");
+    setShowSuggestions(false);
+  };
+  const removeExercise = (id: string) => {
+    setExerciseIds((cur) => cur.filter((x) => x !== id));
+  };
 
   return (
     <div className="space-y-8">
@@ -183,12 +223,12 @@ function StatsPage() {
             ))}
           </div>
         </div>
-        <div className="h-64">
+        <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={volumeByDay}>
+            <BarChart data={volumeByDay} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.012 240)" />
               <XAxis dataKey="date" tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" />
-              <YAxis tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" />
+              <YAxis tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" width={42} />
               <Tooltip
                 contentStyle={{
                   background: "oklch(0.18 0.012 240)",
@@ -203,29 +243,62 @@ function StatsPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card sm:p-5">
         <div className="mb-4 flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Progression par exercice
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Progression par exercice
+            </h2>
+            <span className="text-[10px] text-muted-foreground">
+              {exerciseIds.length}/{MAX_EXERCISES}
+            </span>
+          </div>
+
+          {selectedExercises.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedExercises.map((ex, idx) => (
+                <span
+                  key={ex.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: SERIES_COLORS[idx % SERIES_COLORS.length] }}
+                  />
+                  <span className="max-w-[140px] truncate">{ex.name}</span>
+                  <button
+                    onClick={() => removeExercise(ex.id)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Retirer"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div ref={searchRef} className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              value={selectedExercise && !showSuggestions ? selectedExercise.name : exerciseQuery}
+              value={exerciseQuery}
               onChange={(e) => {
                 setExerciseQuery(e.target.value);
                 setShowSuggestions(true);
-                if (exerciseId) setExerciseId("");
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Rechercher un exercice…"
-              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-9 text-sm focus:border-primary focus:outline-none"
+              disabled={!canAddMore}
+              placeholder={
+                canAddMore
+                  ? "Ajouter un exercice à comparer…"
+                  : `Maximum ${MAX_EXERCISES} exercices`
+              }
+              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-9 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
             />
-            {(selectedExercise || exerciseQuery) && (
+            {exerciseQuery && (
               <button
                 onClick={() => {
-                  setExerciseId("");
                   setExerciseQuery("");
                   setShowSuggestions(false);
                 }}
@@ -235,16 +308,12 @@ function StatsPage() {
                 <X className="h-4 w-4" />
               </button>
             )}
-            {showSuggestions && suggestions.length > 0 && (
+            {showSuggestions && canAddMore && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-card shadow-lg">
                 {suggestions.map((e) => (
                   <button
                     key={e.id}
-                    onClick={() => {
-                      setExerciseId(e.id);
-                      setExerciseQuery("");
-                      setShowSuggestions(false);
-                    }}
+                    onClick={() => addExercise(e.id)}
                     className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
                   >
                     <span className="truncate">{e.name}</span>
@@ -255,13 +324,13 @@ function StatsPage() {
             )}
           </div>
         </div>
-        <div className="h-64">
+        <div className="h-72 w-full">
           {exerciseProgress.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={exerciseProgress}>
+              <LineChart data={exerciseProgress} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.28 0.012 240)" />
                 <XAxis dataKey="date" tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" />
-                <YAxis tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" />
+                <YAxis tick={{ fill: "oklch(0.65 0.02 240)", fontSize: 11 }} stroke="oklch(0.28 0.012 240)" width={36} />
                 <Tooltip
                   contentStyle={{
                     background: "oklch(0.18 0.012 240)",
@@ -270,20 +339,28 @@ function StatsPage() {
                     fontSize: 12,
                   }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="max"
-                  stroke="oklch(0.88 0.22 130)"
-                  strokeWidth={3}
-                  dot={{ fill: "oklch(0.88 0.22 130)", r: 4 }}
-                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {selectedExercises.map((ex, idx) => {
+                  const color = SERIES_COLORS[idx % SERIES_COLORS.length];
+                  return (
+                    <Line
+                      key={ex.id}
+                      type="monotone"
+                      dataKey={ex.name}
+                      stroke={color}
+                      strokeWidth={2.5}
+                      dot={{ fill: color, r: 3 }}
+                      connectNulls
+                    />
+                  );
+                })}
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
-              {exerciseId
-                ? "Aucune donnée pour cet exercice sur la période"
-                : "Recherche un exercice pour voir ta progression"}
+              {exerciseIds.length > 0
+                ? "Aucune donnée pour ces exercices sur la période"
+                : "Ajoute un exercice pour voir ta progression"}
             </div>
           )}
         </div>

@@ -1,21 +1,22 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Dumbbell, TrendingUp, ListChecks, Zap } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { canOpenOfflineApp } from "@/lib/offline";
 
 export const Route = createFileRoute("/")({
-  beforeLoad: async () => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session || canOpenOfflineApp()) throw redirect({ to: "/app" });
-    } catch {
-      if (canOpenOfflineApp()) throw redirect({ to: "/app" });
-    }
-  },
   component: Landing,
 });
 
 function Landing() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (user || canOpenOfflineApp()) navigate({ to: "/app" });
+  }, [user, loading, navigate]);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       <div className="absolute inset-0 bg-gradient-hero" />

@@ -13,6 +13,23 @@ export const Route = createFileRoute("/app/")({
 function HomePage() {
   const { user } = useAuth();
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const firstName =
+    profile?.display_name?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "";
+
   const { data: workouts } = useQuery({
     queryKey: ["workouts", "recent", user?.id],
     enabled: !!user,
@@ -51,19 +68,22 @@ function HomePage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-end justify-between gap-4">
-        <div>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {format(new Date(), "EEEE d MMMM", { locale: fr })}
           </p>
-          <h1 className="mt-1 text-3xl font-bold md:text-4xl">Prêt à forger ?</h1>
+          <h1 className="mt-1 text-2xl font-bold sm:text-3xl md:text-4xl">
+            {firstName ? `Salut ${firstName} 💪` : "Prêt à forger ?"}
+          </h1>
         </div>
         <Link
           to="/app/workout/new"
-          className="flex items-center gap-2 rounded-lg bg-gradient-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-glow transition-transform hover:scale-[1.02]"
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-gradient-primary px-3 py-2.5 text-xs font-bold text-primary-foreground shadow-glow transition-transform hover:scale-[1.02] sm:px-4 sm:py-3 sm:text-sm"
         >
           <Plus className="h-4 w-4" />
-          Nouvelle séance
+          <span className="hidden sm:inline">Nouvelle séance</span>
+          <span className="sm:hidden">Nouvelle</span>
         </Link>
       </div>
 
