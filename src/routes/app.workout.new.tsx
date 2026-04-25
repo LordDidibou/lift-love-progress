@@ -104,7 +104,7 @@ function NewWorkoutPage() {
         .insert({
           user_id: user.id,
           routine_id: routineId ?? null,
-          name,
+          name: name.trim() || `Séance – ${format(startedAt, "dd/MM/yyyy")}`,
           started_at: startedAt.toISOString(),
           ended_at: new Date().toISOString(),
         })
