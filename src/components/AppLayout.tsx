@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Dumbbell, BarChart3, ListChecks, User, LogOut, Activity } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -17,10 +19,40 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const loc = useLocation();
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("avatar_url, display_name")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const handleSignOut = async () => {
     await signOut();
     navigate({ to: "/auth" });
   };
+
+  const Avatar = ({ size }: { size: number }) =>
+    profile?.avatar_url ? (
+      <img
+        src={profile.avatar_url}
+        alt="Profil"
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    ) : (
+      <div
+        className="flex items-center justify-center rounded-full bg-secondary text-muted-foreground"
+        style={{ width: size, height: size }}
+      >
+        <User className="h-1/2 w-1/2" />
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +86,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">{user?.email}</span>
+            <Link to="/app/profile" className="flex items-center gap-2 rounded-md p-1 hover:bg-secondary" aria-label="Profil">
+              <Avatar size={28} />
+              <span className="hidden text-xs text-muted-foreground lg:inline">{profile?.display_name ?? user?.email}</span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -75,13 +110,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-display text-lg font-bold">FORGE</span>
           </Link>
-          <button
-            onClick={handleSignOut}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground"
-            aria-label="Déconnexion"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Link to="/app/profile" aria-label="Profil" className="rounded-full">
+              <Avatar size={32} />
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground"
+              aria-label="Déconnexion"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 

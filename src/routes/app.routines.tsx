@@ -393,40 +393,53 @@ function RoutineBuilder({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Exercices ({picked.length})
               </p>
+              <div className="grid grid-cols-[1fr_60px_60px_28px] gap-2 px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span>Exercice</span>
+                <span className="text-center">Séries</span>
+                <span className="text-center">Reps</span>
+                <span></span>
+              </div>
               {picked.map((p, i) => (
-                <div key={p.exercise_id} className="flex items-center gap-2 rounded-md border border-border bg-background p-2">
-                  <span className="flex-1 truncate text-sm font-semibold">{p.name}</span>
+                <div key={p.exercise_id} className="grid grid-cols-[1fr_60px_60px_28px] items-center gap-2 rounded-md border border-border bg-background p-2">
+                  <span className="truncate text-sm font-semibold">{p.name}</span>
                   <input
                     type="number"
                     min={1}
+                    inputMode="numeric"
                     value={p.target_sets}
                     onChange={(e) =>
                       setPicked((s) =>
                         s.map((x, j) => (j === i ? { ...x, target_sets: Number(e.target.value) } : x)),
                       )
                     }
-                    className="w-14 rounded border border-input bg-card px-2 py-1 text-center text-sm"
+                    className="w-full rounded border border-input bg-card px-1 py-1 text-center text-sm"
+                    aria-label="Nombre de séries"
                   />
-                  <span className="text-xs text-muted-foreground">×</span>
                   <input
                     type="number"
                     min={1}
+                    inputMode="numeric"
                     value={p.target_reps}
                     onChange={(e) =>
                       setPicked((s) =>
                         s.map((x, j) => (j === i ? { ...x, target_reps: Number(e.target.value) } : x)),
                       )
                     }
-                    className="w-14 rounded border border-input bg-card px-2 py-1 text-center text-sm"
+                    className="w-full rounded border border-input bg-card px-1 py-1 text-center text-sm"
+                    aria-label="Répétitions cibles"
                   />
                   <button
                     onClick={() => setPicked((s) => s.filter((_, j) => j !== i))}
                     className="text-muted-foreground hover:text-destructive"
+                    aria-label="Retirer"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               ))}
+              <p className="px-2 text-[10px] text-muted-foreground">
+                💡 Le poids (kg) sera saisi pendant la séance.
+              </p>
             </div>
           )}
 

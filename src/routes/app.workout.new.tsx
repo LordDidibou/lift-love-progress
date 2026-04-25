@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, X, Search, Check, Trash2, Flame } from "lucide-react";
+import { Plus, X, Search, Check, Trash2, Flame, Calendar } from "lucide-react";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,10 +31,22 @@ function NewWorkoutPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [name, setName] = useState("Séance");
+  const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<LocalEx[]>([]);
   const [picker, setPicker] = useState(false);
-  const [startedAt] = useState(() => new Date());
+  const [startedAt, setStartedAt] = useState<Date>(() => new Date());
+
+  // Auto-nom : "Premier exo - dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
+  useEffect(() => {
+    if (nameTouched) return;
+    const first = items[0]?.name;
+    if (first) {
+      setName(`${first} – ${format(startedAt, "dd/MM/yyyy")}`);
+    } else {
+      setName("");
+    }
+  }, [items, startedAt, nameTouched]);
 
   // Preload from routine
   const { data: routine } = useQuery({
@@ -53,6 +66,7 @@ function NewWorkoutPage() {
   useEffect(() => {
     if (routine && items.length === 0) {
       setName(routine.name);
+      setNameTouched(true); // nom du programme = nom voulu, on désactive l'auto
       const sorted = [...routine.routine_exercises].sort((a, b) => a.position - b.position);
       setItems(
         sorted.map((re) => ({
@@ -90,7 +104,7 @@ function NewWorkoutPage() {
         .insert({
           user_id: user.id,
           routine_id: routineId ?? null,
-          name,
+          name: name.trim() || `Séance – ${format(startedAt, "dd/MM/yyyy")}`,
           started_at: startedAt.toISOString(),
           ended_at: new Date().toISOString(),
         })
@@ -133,14 +147,37 @@ function NewWorkoutPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
+  const dateInputValue = format(startedAt, "yyyy-MM-dd");
+
   return (
     <div className="space-y-5 pb-28">
-      <div className="flex items-center gap-3">
+      <div className="space-y-2">
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent text-2xl font-bold focus:outline-none"
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameTouched(true);
+          }}
+          placeholder="Nom de la séance"
+          className="w-full min-w-0 bg-transparent text-2xl font-bold focus:outline-none"
         />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>Date :</span>
+          <input
+            type="date"
+            value={dateInputValue}
+            max={format(new Date(), "yyyy-MM-dd")}
+            onChange={(e) => {
+              const [y, m, d] = e.target.value.split("-").map(Number);
+              if (!y) return;
+              const next = new Date(startedAt);
+              next.setFullYear(y, m - 1, d);
+              setStartedAt(next);
+            }}
+            className="rounded border border-input bg-background px-2 py-1 text-xs"
+          />
+        </label>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -329,14 +366,15 @@ function ExercisePicker({
 }) {
   const [q, setQ] = useState("");
   const { data: exercises = [] } = useQuery({
-    queryKey: ["exercises"],
+    queryKey: ["exercises-pickable"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("exercises")
-        .select("id, name, muscle_group, equipment")
-        .order("name");
+      const [{ data: exs, error }, { data: hidden }] = await Promise.all([
+        supabase.from("exercises").select("id, name, muscle_group, equipment").order("name"),
+        supabase.from("hidden_exercises").select("exercise_id"),
+      ]);
       if (error) throw error;
-      return data;
+      const hiddenIds = new Set((hidden ?? []).map((h) => h.exercise_id as string));
+      return (exs ?? []).filter((e) => !hiddenIds.has(e.id));
     },
   });
   const filtered = exercises.filter((e) =>
@@ -345,20 +383,20 @@ function ExercisePicker({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-background/90 p-0 backdrop-blur md:items-center md:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-background/90 backdrop-blur md:items-center md:p-6"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl border border-border bg-card md:rounded-2xl"
+        className="flex h-[100dvh] w-full max-w-md flex-col border border-border bg-card md:h-auto md:max-h-[85vh] md:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border p-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
           <h2 className="text-lg font-bold">Choisir un exercice</h2>
-          <button onClick={onClose} className="text-muted-foreground">
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-secondary">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="border-b border-border p-3">
+        <div className="shrink-0 border-b border-border p-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -366,21 +404,24 @@ function ExercisePicker({
               placeholder="Rechercher…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none"
+              className="w-full rounded-md border border-input bg-background py-2.5 pl-10 pr-3 focus:border-primary focus:outline-none"
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
           {filtered.map((e) => (
             <button
               key={e.id}
               onClick={() => onPick(e)}
-              className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left hover:bg-secondary"
+              className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-3 text-left hover:bg-secondary"
             >
-              <span className="font-semibold">{e.name}</span>
-              <span className="text-xs text-muted-foreground">{e.muscle_group}</span>
+              <span className="truncate font-semibold">{e.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{e.muscle_group}</span>
             </button>
           ))}
+          {filtered.length === 0 && (
+            <p className="p-6 text-center text-sm text-muted-foreground">Aucun résultat</p>
+          )}
         </div>
       </div>
     </div>
