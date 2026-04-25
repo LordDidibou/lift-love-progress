@@ -188,6 +188,45 @@ function ProfilePage() {
           <User className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-bold">Identité</h2>
         </div>
+        <div className="mb-5 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={avatarUploading}
+            className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-border bg-secondary transition-colors hover:border-primary"
+            aria-label="Changer la photo"
+          >
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <User className="h-8 w-8" />
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+              {avatarUploading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-white" />
+              ) : (
+                <Camera className="h-5 w-5 text-white" />
+              )}
+            </div>
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Photo de profil</p>
+            <p className="text-xs text-muted-foreground">Clique pour {profile?.avatar_url ? "changer" : "ajouter"} (max 5 Mo)</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) uploadAvatar(f);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        </div>
         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Nom affiché
         </label>
@@ -196,7 +235,7 @@ function ProfilePage() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Ton nom"
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
           />
           <button
             onClick={() => renameMut.mutate()}
@@ -205,7 +244,7 @@ function ProfilePage() {
               !displayName.trim() ||
               displayName.trim() === originalName
             }
-            className="flex items-center gap-1.5 rounded-md bg-gradient-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50"
+            className="flex shrink-0 items-center gap-1.5 rounded-md bg-gradient-primary px-3 text-sm font-bold text-primary-foreground disabled:opacity-50 sm:px-4"
           >
             <Check className="h-4 w-4" />
             <span className="hidden sm:inline">Enregistrer</span>
