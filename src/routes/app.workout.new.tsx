@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, X, Search, Check, Trash2, Flame } from "lucide-react";
+import { Plus, X, Search, Check, Trash2, Flame, Calendar } from "lucide-react";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
