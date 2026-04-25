@@ -110,13 +110,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-display text-lg font-bold">FORGE</span>
           </Link>
-          <button
-            onClick={handleSignOut}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground"
-            aria-label="Déconnexion"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Link to="/app/profile" aria-label="Profil" className="rounded-full">
+              <Avatar size={32} />
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground"
+              aria-label="Déconnexion"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 
