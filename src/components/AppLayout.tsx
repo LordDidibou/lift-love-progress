@@ -86,7 +86,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">{user?.email}</span>
+            <Link to="/app/profile" className="flex items-center gap-2 rounded-md p-1 hover:bg-secondary" aria-label="Profil">
+              <Avatar size={28} />
+              <span className="hidden text-xs text-muted-foreground lg:inline">{profile?.display_name ?? user?.email}</span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
