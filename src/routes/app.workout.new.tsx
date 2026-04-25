@@ -382,20 +382,20 @@ function ExercisePicker({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-background/90 p-0 backdrop-blur md:items-center md:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-background/90 backdrop-blur md:items-center md:p-6"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl border border-border bg-card md:rounded-2xl"
+        className="flex h-[100dvh] w-full max-w-md flex-col border border-border bg-card md:h-auto md:max-h-[85vh] md:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border p-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
           <h2 className="text-lg font-bold">Choisir un exercice</h2>
-          <button onClick={onClose} className="text-muted-foreground">
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-secondary">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="border-b border-border p-3">
+        <div className="shrink-0 border-b border-border p-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -403,21 +403,24 @@ function ExercisePicker({
               placeholder="Rechercher…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none"
+              className="w-full rounded-md border border-input bg-background py-2.5 pl-10 pr-3 focus:border-primary focus:outline-none"
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
           {filtered.map((e) => (
             <button
               key={e.id}
               onClick={() => onPick(e)}
-              className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left hover:bg-secondary"
+              className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-3 text-left hover:bg-secondary"
             >
-              <span className="font-semibold">{e.name}</span>
-              <span className="text-xs text-muted-foreground">{e.muscle_group}</span>
+              <span className="truncate font-semibold">{e.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{e.muscle_group}</span>
             </button>
           ))}
+          {filtered.length === 0 && (
+            <p className="p-6 text-center text-sm text-muted-foreground">Aucun résultat</p>
+          )}
         </div>
       </div>
     </div>
