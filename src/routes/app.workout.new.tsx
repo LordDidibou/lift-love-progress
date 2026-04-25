@@ -366,14 +366,15 @@ function ExercisePicker({
 }) {
   const [q, setQ] = useState("");
   const { data: exercises = [] } = useQuery({
-    queryKey: ["exercises"],
+    queryKey: ["exercises-pickable"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("exercises")
-        .select("id, name, muscle_group, equipment")
-        .order("name");
+      const [{ data: exs, error }, { data: hidden }] = await Promise.all([
+        supabase.from("exercises").select("id, name, muscle_group, equipment").order("name"),
+        supabase.from("hidden_exercises").select("exercise_id"),
+      ]);
       if (error) throw error;
-      return data;
+      const hiddenIds = new Set((hidden ?? []).map((h) => h.exercise_id as string));
+      return (exs ?? []).filter((e) => !hiddenIds.has(e.id));
     },
   });
   const filtered = exercises.filter((e) =>
