@@ -31,10 +31,22 @@ function NewWorkoutPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [name, setName] = useState("Séance");
+  const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<LocalEx[]>([]);
   const [picker, setPicker] = useState(false);
-  const [startedAt] = useState(() => new Date());
+  const [startedAt, setStartedAt] = useState<Date>(() => new Date());
+
+  // Auto-nom : "Premier exo - dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
+  useEffect(() => {
+    if (nameTouched) return;
+    const first = items[0]?.name;
+    if (first) {
+      setName(`${first} – ${format(startedAt, "dd/MM/yyyy")}`);
+    } else {
+      setName("");
+    }
+  }, [items, startedAt, nameTouched]);
 
   // Preload from routine
   const { data: routine } = useQuery({
