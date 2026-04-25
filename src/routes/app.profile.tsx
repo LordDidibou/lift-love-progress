@@ -40,13 +40,45 @@ function ProfilePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, avatar_url")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const uploadAvatar = async (file: File) => {
+    if (!user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image trop lourde (max 5 Mo)");
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, cacheControl: "3600" });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { error: updErr } = await supabase
+        .from("profiles")
+        .update({ avatar_url: pub.publicUrl })
+        .eq("id", user.id);
+      if (updErr) throw updErr;
+      toast.success("Photo mise à jour");
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur upload");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (profile?.display_name !== undefined && profile?.display_name !== null) {
