@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Dumbbell, BarChart3, ListChecks, User, LogOut, Activity } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
