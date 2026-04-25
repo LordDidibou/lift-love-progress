@@ -66,6 +66,7 @@ function NewWorkoutPage() {
   useEffect(() => {
     if (routine && items.length === 0) {
       setName(routine.name);
+      setNameTouched(true); // nom du programme = nom voulu, on désactive l'auto
       const sorted = [...routine.routine_exercises].sort((a, b) => a.position - b.position);
       setItems(
         sorted.map((re) => ({
