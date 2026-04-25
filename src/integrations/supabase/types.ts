@@ -42,8 +42,10 @@ export type Database = {
         Row: {
           created_at: string
           equipment: string
+          equipment_detail: string | null
           id: string
           image_url: string | null
+          incline: string | null
           instructions: string | null
           is_custom: boolean
           muscle_group: string
@@ -53,8 +55,10 @@ export type Database = {
         Insert: {
           created_at?: string
           equipment: string
+          equipment_detail?: string | null
           id?: string
           image_url?: string | null
+          incline?: string | null
           instructions?: string | null
           is_custom?: boolean
           muscle_group: string
@@ -64,8 +68,10 @@ export type Database = {
         Update: {
           created_at?: string
           equipment?: string
+          equipment_detail?: string | null
           id?: string
           image_url?: string | null
+          incline?: string | null
           instructions?: string | null
           is_custom?: boolean
           muscle_group?: string
@@ -74,20 +80,44 @@ export type Database = {
         }
         Relationships: []
       }
+      hidden_exercises: {
+        Row: {
+          created_at: string
+          exercise_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exercise_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           display_name: string | null
           id: string
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id: string
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
