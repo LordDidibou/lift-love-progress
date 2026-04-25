@@ -147,14 +147,37 @@ function NewWorkoutPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
+  const dateInputValue = format(startedAt, "yyyy-MM-dd");
+
   return (
     <div className="space-y-5 pb-28">
-      <div className="flex items-center gap-3">
+      <div className="space-y-2">
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent text-2xl font-bold focus:outline-none"
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameTouched(true);
+          }}
+          placeholder="Nom de la séance"
+          className="w-full min-w-0 bg-transparent text-2xl font-bold focus:outline-none"
         />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>Date :</span>
+          <input
+            type="date"
+            value={dateInputValue}
+            max={format(new Date(), "yyyy-MM-dd")}
+            onChange={(e) => {
+              const [y, m, d] = e.target.value.split("-").map(Number);
+              if (!y) return;
+              const next = new Date(startedAt);
+              next.setFullYear(y, m - 1, d);
+              setStartedAt(next);
+            }}
+            className="rounded border border-input bg-background px-2 py-1 text-xs"
+          />
+        </label>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
