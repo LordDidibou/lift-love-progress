@@ -19,10 +19,40 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const loc = useLocation();
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("avatar_url, display_name")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const handleSignOut = async () => {
     await signOut();
     navigate({ to: "/auth" });
   };
+
+  const Avatar = ({ size }: { size: number }) =>
+    profile?.avatar_url ? (
+      <img
+        src={profile.avatar_url}
+        alt="Profil"
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    ) : (
+      <div
+        className="flex items-center justify-center rounded-full bg-secondary text-muted-foreground"
+        style={{ width: size, height: size }}
+      >
+        <User className="h-1/2 w-1/2" />
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-background">
