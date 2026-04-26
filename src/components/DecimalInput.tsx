@@ -36,15 +36,17 @@ export const DecimalInput = forwardRef<HTMLInputElement, Props>(
         autoComplete="off"
         value={text}
         onChange={(e) => {
-          // Allow only digits, one separator, optional leading -
-          let v = e.target.value.replace(/[^0-9.,]/g, "");
+          // Allow optional leading -, digits, one separator
+          let v = e.target.value.replace(/[^0-9.,-]/g, "");
+          // Keep "-" only at position 0
+          v = v.replace(/(?!^)-/g, "");
           // Keep only the first separator
           const firstSep = v.search(/[.,]/);
           if (firstSep !== -1) {
             v = v.slice(0, firstSep + 1) + v.slice(firstSep + 1).replace(/[.,]/g, "");
           }
           setText(v);
-          if (v === "" || v === "," || v === ".") {
+          if (v === "" || v === "," || v === "." || v === "-") {
             onValueChange(0);
             return;
           }
