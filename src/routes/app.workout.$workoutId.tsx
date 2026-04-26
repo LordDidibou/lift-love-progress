@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,15 +38,27 @@ function WorkoutDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/app" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Retour
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link to="/app" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Retour
+        </Link>
+        <Link
+          to="/app/workout/new"
+          search={{ workoutId }}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:border-primary"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Modifier
+        </Link>
+      </div>
 
       <div>
         <h1 className="text-3xl font-bold">{data.name}</h1>
         <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" />
-          {format(new Date(data.started_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}
+          {format(new Date(data.started_at), "dd/MM/yyyy", { locale: fr })}
+          <span className="text-xs opacity-70">
+            · {format(new Date(data.started_at), "EEEE", { locale: fr })}
+          </span>
         </p>
       </div>
 
