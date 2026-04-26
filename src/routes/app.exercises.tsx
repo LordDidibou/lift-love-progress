@@ -1,12 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Plus, X, Dumbbell, MoreVertical, Pencil, Trash2, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 
+const searchSchema = z.object({
+  group: z.string().optional(),
+  q: z.string().optional(),
+});
+
 export const Route = createFileRoute("/app/exercises")({
+  validateSearch: searchSchema,
   component: ExercisesPage,
 });
 
@@ -25,33 +32,6 @@ const MUSCLE_GROUPS = [
 const EQUIPMENT_TYPES = ["Libre", "Machine", "Poulie", "Poids du corps", "Autre"] as const;
 type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 
-const MACHINE_DETAILS = [
-  "Machine guidée (Smith)",
-  "Presse à cuisses",
-  "Hack squat",
-  "Leg curl",
-  "Leg extension",
-  "Pec deck",
-  "Tirage assis",
-  "Tirage vertical (lat pulldown)",
-  "Rowing machine",
-  "Développé machine",
-  "Épaules machine",
-  "Mollets machine",
-  "Autre",
-];
-
-const PULLEY_HANDLES = [
-  "Barre droite",
-  "Barre EZ",
-  "Corde",
-  "Poignée simple",
-  "Poignée V",
-  "Étrier large",
-  "Sangle cheville",
-  "Autre",
-];
-
 const INCLINE_OPTIONS = ["Plat", "Incliné", "Décliné", "Autre"] as const;
 
 type Exercise = {
@@ -61,6 +41,7 @@ type Exercise = {
   equipment: string;
   equipment_detail: string | null;
   incline: string | null;
+  has_bench: boolean;
   instructions: string | null;
   is_custom: boolean;
   image_url: string | null;
@@ -70,10 +51,17 @@ type Exercise = {
 function ExercisesPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [search, setSearch] = useState("");
-  const [group, setGroup] = useState("Tous");
+  const navigate = useNavigate();
+  const { group: groupParam, q: qParam } = Route.useSearch();
+  const group = groupParam ?? "Tous";
+  const search = qParam ?? "";
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
+
+  const setSearch = (q: string) =>
+    navigate({ to: "/app/exercises", search: (p) => ({ ...p, q: q || undefined }), replace: true });
+  const setGroup = (g: string) =>
+    navigate({ to: "/app/exercises", search: (p) => ({ ...p, group: g === "Tous" ? undefined : g }), replace: true });
 
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises"],
@@ -145,7 +133,7 @@ function ExercisesPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Exercice masqué");
+      toast.success("Masqué");
       qc.invalidateQueries({ queryKey: ["hidden-exercises"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
@@ -157,7 +145,7 @@ function ExercisesPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Exercice supprimé");
+      toast.success("Supprimé");
       qc.invalidateQueries({ queryKey: ["exercises"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
@@ -221,6 +209,8 @@ function ExercisesPage() {
             key={ex.id}
             ex={ex}
             currentUserId={user?.id}
+            currentGroup={group}
+            currentSearch={search}
             onEdit={() => setEditing(ex)}
             onDelete={() => handleDelete(ex)}
           />
@@ -259,11 +249,15 @@ function ExercisesPage() {
 function ExerciseCard({
   ex,
   currentUserId,
+  currentGroup,
+  currentSearch,
   onEdit,
   onDelete,
 }: {
   ex: Exercise;
   currentUserId?: string;
+  currentGroup: string;
+  currentSearch: string;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -285,6 +279,10 @@ function ExerciseCard({
       <Link
         to="/app/exercise/$exerciseId"
         params={{ exerciseId: ex.id }}
+        search={{
+          group: currentGroup === "Tous" ? undefined : currentGroup,
+          q: currentSearch || undefined,
+        }}
         className="flex min-w-0 flex-1 items-center gap-3"
       >
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-secondary text-primary">
@@ -380,9 +378,13 @@ function ExerciseModal({
   const [equipmentFreeText, setEquipmentFreeText] = useState(
     isEdit ? exercise!.equipment : "Barre",
   );
-  const [equipmentDetail, setEquipmentDetail] = useState(exercise?.equipment_detail ?? "");
-  const [equipmentDetailOther, setEquipmentDetailOther] = useState("");
+  const [hasBench, setHasBench] = useState<boolean>(exercise?.has_bench ?? false);
   const [incline, setIncline] = useState<string>(exercise?.incline ?? "Plat");
+  const [inclineOther, setInclineOther] = useState<string>(
+    exercise?.incline && !INCLINE_OPTIONS.includes(exercise.incline as (typeof INCLINE_OPTIONS)[number])
+      ? exercise.incline
+      : "",
+  );
   const [instructions, setInstructions] = useState(exercise?.instructions ?? "");
 
   const finalEquipment = useMemo(() => {
@@ -391,11 +393,11 @@ function ExerciseModal({
     return equipmentType;
   }, [equipmentType, equipmentFreeText]);
 
-  const finalEquipmentDetail = useMemo(() => {
-    if (equipmentType !== "Machine" && equipmentType !== "Poulie") return null;
-    if (equipmentDetail === "Autre") return equipmentDetailOther.trim() || null;
-    return equipmentDetail || null;
-  }, [equipmentType, equipmentDetail, equipmentDetailOther]);
+  const finalIncline = useMemo(() => {
+    if (!hasBench) return null;
+    if (incline === "Autre") return inclineOther.trim() || null;
+    return incline;
+  }, [hasBench, incline, inclineOther]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -404,13 +406,13 @@ function ExerciseModal({
         name: name.trim(),
         muscle_group: muscleGroup,
         equipment: finalEquipment,
-        equipment_detail: finalEquipmentDetail,
-        incline: equipmentType === "Libre" || equipmentType === "Machine" ? incline : null,
+        equipment_detail: null, // simplifié : plus de details machine/poulie
+        has_bench: hasBench,
+        incline: finalIncline,
         instructions: instructions.trim() || null,
       };
 
       if (isEdit && isOwn) {
-        // Modif directe
         const { error } = await supabase.from("exercises").update(payload).eq("id", exercise!.id);
         if (error) throw error;
         return;
@@ -431,7 +433,7 @@ function ExerciseModal({
       }
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Exercice modifié" : "Exercice ajouté");
+      toast.success(isEdit ? "Modifié" : "Ajouté");
       onSaved();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
@@ -504,75 +506,64 @@ function ExerciseModal({
             </Field>
           )}
 
-          {equipmentType === "Machine" && (
+          <Field label="Avec banc ?">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setHasBench(true)}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-semibold transition-colors ${
+                  hasBench
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-muted-foreground"
+                }`}
+              >
+                Oui
+              </button>
+              <button
+                type="button"
+                onClick={() => setHasBench(false)}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-semibold transition-colors ${
+                  !hasBench
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-muted-foreground"
+                }`}
+              >
+                Non
+              </button>
+            </div>
+          </Field>
+
+          {hasBench && (
             <>
-              <Field label="Type de machine">
-                <select
-                  value={equipmentDetail || MACHINE_DETAILS[0]}
-                  onChange={(e) => setEquipmentDetail(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5"
-                >
-                  {MACHINE_DETAILS.map((m) => (
-                    <option key={m}>{m}</option>
+              <Field label="Inclinaison du banc">
+                <div className="flex flex-wrap gap-2">
+                  {INCLINE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setIncline(opt)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        incline === opt
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-background text-muted-foreground"
+                      }`}
+                    >
+                      {opt}
+                    </button>
                   ))}
-                </select>
+                </div>
               </Field>
-              {equipmentDetail === "Autre" && (
-                <Field label="Préciser la machine">
+              {incline === "Autre" && (
+                <Field label="Préciser l'inclinaison">
                   <input
-                    value={equipmentDetailOther}
-                    onChange={(e) => setEquipmentDetailOther(e.target.value)}
+                    value={inclineOther}
+                    onChange={(e) => setInclineOther(e.target.value)}
+                    placeholder="ex : 30°"
                     className="w-full rounded-md border border-input bg-background px-3 py-2.5 focus:border-primary focus:outline-none"
                   />
                 </Field>
               )}
             </>
-          )}
-
-          {equipmentType === "Poulie" && (
-            <>
-              <Field label="Poignée / accessoire">
-                <select
-                  value={equipmentDetail || PULLEY_HANDLES[0]}
-                  onChange={(e) => setEquipmentDetail(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5"
-                >
-                  {PULLEY_HANDLES.map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-              </Field>
-              {equipmentDetail === "Autre" && (
-                <Field label="Préciser la poignée">
-                  <input
-                    value={equipmentDetailOther}
-                    onChange={(e) => setEquipmentDetailOther(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2.5 focus:border-primary focus:outline-none"
-                  />
-                </Field>
-              )}
-            </>
-          )}
-
-          {(equipmentType === "Libre" || equipmentType === "Machine") && (
-            <Field label="Inclinaison du banc">
-              <div className="flex flex-wrap gap-2">
-                {INCLINE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setIncline(opt)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      incline === opt
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border bg-background text-muted-foreground"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </Field>
           )}
 
           <Field label="Description (optionnel)">

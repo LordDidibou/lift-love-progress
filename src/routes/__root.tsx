@@ -99,6 +99,18 @@ function RootComponent() {
     registerServiceWorker();
   }, []);
 
+  // Dismiss tous les toasts dès qu'on touche/clique ailleurs
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const dismiss = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-sonner-toast]")) return;
+      import("sonner").then(({ toast }) => toast.dismiss());
+    };
+    document.addEventListener("pointerdown", dismiss, { passive: true });
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, []);
+
   const persister = useMemo(() => {
     if (typeof window === "undefined") return null;
     return createSyncStoragePersister({
@@ -112,7 +124,7 @@ function RootComponent() {
     <AuthProvider>
       <OfflineIndicator />
       <Outlet />
-      <Toaster theme="dark" position="top-center" richColors />
+      <Toaster theme="dark" position="top-center" richColors duration={1800} closeButton={false} />
     </AuthProvider>
   );
 

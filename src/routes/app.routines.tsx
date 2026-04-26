@@ -1,7 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Play, X, Search, MoreVertical, Pencil, Edit3 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Play,
+  X,
+  Search,
+  MoreVertical,
+  Pencil,
+  Edit3,
+  ChevronUp,
+  ChevronDown,
+  ListOrdered,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -13,14 +25,17 @@ export const Route = createFileRoute("/app/routines")({
 type RoutineExercise = {
   id: string;
   exercise_id: string;
+  position: number;
   target_sets: number;
   target_reps: number;
+  reps_per_set: number[] | null;
   exercises?: { name: string } | null;
 };
 
 type Routine = {
   id: string;
   name: string;
+  position: number;
   routine_exercises: RoutineExercise[];
 };
 
@@ -37,10 +52,18 @@ function RoutinesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("routines")
-        .select("*, routine_exercises(id, exercise_id, target_sets, target_reps, exercises(name))")
+        .select(
+          "id, name, position, routine_exercises(id, exercise_id, position, target_sets, target_reps, reps_per_set, exercises(name))",
+        )
+        .order("position", { ascending: true })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Routine[];
+      return (data ?? []).map((r) => ({
+        ...r,
+        routine_exercises: [...(r.routine_exercises ?? [])].sort(
+          (a, b) => (a.position ?? 0) - (b.position ?? 0),
+        ),
+      })) as Routine[];
     },
   });
 
@@ -50,10 +73,31 @@ function RoutinesPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Programme supprimé");
+      toast.success("Supprimé");
       qc.invalidateQueries({ queryKey: ["routines"] });
     },
   });
+
+  const reorderMut = useMutation({
+    mutationFn: async (next: Routine[]) => {
+      // Update positions in batch
+      await Promise.all(
+        next.map((r, i) =>
+          supabase.from("routines").update({ position: i }).eq("id", r.id),
+        ),
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routines"] }),
+  });
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= routines.length) return;
+    const next = [...routines];
+    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    qc.setQueryData(["routines", user?.id], next);
+    reorderMut.mutate(next);
+  };
 
   return (
     <div className="space-y-6">
@@ -79,10 +123,14 @@ function RoutinesPage() {
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {routines.map((r) => (
+          {routines.map((r, i) => (
             <RoutineCard
               key={r.id}
               routine={r}
+              isFirst={i === 0}
+              isLast={i === routines.length - 1}
+              onMoveUp={() => move(i, -1)}
+              onMoveDown={() => move(i, 1)}
               onRename={() => setRenaming(r)}
               onEdit={() => setEditing(r)}
               onDelete={() => {
@@ -130,11 +178,19 @@ function RoutinesPage() {
 
 function RoutineCard({
   routine,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
   onRename,
   onEdit,
   onDelete,
 }: {
   routine: Routine;
+  isFirst: boolean;
+  isLast: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onRename: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -152,63 +208,84 @@ function RoutineCard({
 
   return (
     <div className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary/40">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-lg font-bold">{routine.name}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {routine.routine_exercises.length} exercice(s)
           </p>
         </div>
-        <div ref={menuRef} className="relative">
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            aria-label="Options"
+            onClick={onMoveUp}
+            disabled={isFirst}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
+            aria-label="Monter"
           >
-            <MoreVertical className="h-4 w-4" />
+            <ChevronUp className="h-4 w-4" />
           </button>
-          {open && (
-            <div className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-border bg-card shadow-lg">
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onRename();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Renommer
-              </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onEdit();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
-              >
-                <Edit3 className="h-3.5 w-3.5" /> Modifier
-              </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onDelete();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Supprimer
-              </button>
-            </div>
-          )}
+          <button
+            onClick={onMoveDown}
+            disabled={isLast}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
+            aria-label="Descendre"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-label="Options"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {open && (
+              <div className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onRename();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Renommer
+                </button>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onEdit();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                >
+                  <Edit3 className="h-3.5 w-3.5" /> Modifier
+                </button>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onDelete();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <ul className="mt-3 space-y-1 text-sm">
-        {routine.routine_exercises.slice(0, 4).map((re) => (
-          <li key={re.id} className="flex justify-between text-muted-foreground">
-            <span className="truncate">{re.exercises?.name}</span>
-            <span className="shrink-0 text-xs">
-              {re.target_sets} × {re.target_reps}
-            </span>
-          </li>
-        ))}
+        {routine.routine_exercises.slice(0, 4).map((re) => {
+          const reps = re.reps_per_set && re.reps_per_set.length > 0
+            ? re.reps_per_set.join("/")
+            : `${re.target_sets} × ${re.target_reps}`;
+          return (
+            <li key={re.id} className="flex justify-between gap-2 text-muted-foreground">
+              <span className="truncate">{re.exercises?.name}</span>
+              <span className="shrink-0 text-xs">{reps}</span>
+            </li>
+          );
+        })}
         {routine.routine_exercises.length > 4 && (
           <li className="text-xs text-muted-foreground">
             +{routine.routine_exercises.length - 4} autres…
@@ -242,7 +319,7 @@ function RenameDialog({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Programme renommé");
+      toast.success("Renommé");
       onSaved();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
@@ -275,7 +352,13 @@ function RenameDialog({
   );
 }
 
-type Picked = { exercise_id: string; name: string; target_sets: number; target_reps: number };
+type Picked = {
+  exercise_id: string;
+  name: string;
+  target_sets: number;
+  target_reps: number;
+  reps_per_set: number[] | null; // null = mode simple uniforme
+};
 
 function RoutineBuilder({
   routine,
@@ -295,17 +378,26 @@ function RoutineBuilder({
           name: re.exercises?.name ?? "",
           target_sets: re.target_sets,
           target_reps: Number(re.target_reps),
+          reps_per_set:
+            re.reps_per_set && re.reps_per_set.length > 0
+              ? re.reps_per_set.map(Number)
+              : null,
         }))
       : [],
   );
   const [search, setSearch] = useState("");
+  const [advancedFor, setAdvancedFor] = useState<string | null>(null);
 
   const { data: exercises = [] } = useQuery({
-    queryKey: ["exercises"],
+    queryKey: ["exercises-pickable-routine"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("exercises").select("id, name, muscle_group").order("name");
+      const [{ data: exs, error }, { data: hidden }] = await Promise.all([
+        supabase.from("exercises").select("id, name, muscle_group").order("name"),
+        supabase.from("hidden_exercises").select("exercise_id"),
+      ]);
       if (error) throw error;
-      return data;
+      const hiddenIds = new Set((hidden ?? []).map((h) => h.exercise_id as string));
+      return (exs ?? []).filter((e) => !hiddenIds.has(e.id));
     },
   });
 
@@ -314,6 +406,34 @@ function RoutineBuilder({
       (!search || e.name.toLowerCase().includes(search.toLowerCase())) &&
       !picked.some((p) => p.exercise_id === e.id),
   );
+
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= picked.length) return;
+    setPicked((s) => {
+      const next = [...s];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+  const toggleAdvanced = (id: string) => {
+    setPicked((s) =>
+      s.map((p) => {
+        if (p.exercise_id !== id) return p;
+        if (p.reps_per_set) {
+          // bascule en mode simple : récupère la 1re valeur
+          return { ...p, reps_per_set: null };
+        }
+        // bascule en mode avancé : initialise un tableau de target_sets entrées
+        return {
+          ...p,
+          reps_per_set: Array.from({ length: p.target_sets }, () => p.target_reps),
+        };
+      }),
+    );
+    setAdvancedFor((cur) => (cur === id ? null : id));
+  };
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -330,16 +450,23 @@ function RoutineBuilder({
           .eq("id", routine.id);
         if (error) throw error;
         routineId = routine.id;
-        // Remplacer les exercices
         const { error: delErr } = await supabase
           .from("routine_exercises")
           .delete()
           .eq("routine_id", routineId);
         if (delErr) throw delErr;
       } else {
+        // Place le nouveau programme à la fin
+        const { data: maxRow } = await supabase
+          .from("routines")
+          .select("position")
+          .order("position", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextPos = (maxRow?.position ?? -1) + 1;
         const { data: r, error } = await supabase
           .from("routines")
-          .insert({ user_id: user.id, name: name.trim() })
+          .insert({ user_id: user.id, name: name.trim(), position: nextPos })
           .select()
           .single();
         if (error) throw error;
@@ -350,8 +477,9 @@ function RoutineBuilder({
         routine_id: routineId,
         exercise_id: p.exercise_id,
         position: i,
-        target_sets: p.target_sets,
-        target_reps: p.target_reps,
+        target_sets: p.reps_per_set?.length ?? p.target_sets,
+        target_reps: p.reps_per_set?.[0] ?? p.target_reps,
+        reps_per_set: p.reps_per_set,
       }));
       if (rows.length > 0) {
         const { error: e2 } = await supabase.from("routine_exercises").insert(rows);
@@ -359,7 +487,7 @@ function RoutineBuilder({
       }
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Programme mis à jour" : "Programme créé");
+      toast.success(isEdit ? "Mis à jour" : "Créé");
       onSaved();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
@@ -371,16 +499,16 @@ function RoutineBuilder({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-2xl border border-border bg-card shadow-card md:rounded-2xl"
+        className="flex h-[100dvh] w-full max-w-2xl flex-col border border-border bg-card shadow-card md:h-auto md:max-h-[92vh] md:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border p-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-border p-5">
           <h2 className="text-lg font-bold">{isEdit ? "Modifier le programme" : "Nouveau programme"}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
           <input
             placeholder="Nom (ex: Push Day)"
             value={name}
@@ -390,55 +518,187 @@ function RoutineBuilder({
 
           {picked.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Exercices ({picked.length})
-              </p>
-              <div className="grid grid-cols-[1fr_60px_60px_28px] gap-2 px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <span>Exercice</span>
-                <span className="text-center">Séries</span>
-                <span className="text-center">Reps</span>
-                <span></span>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Exercices ({picked.length})
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Séries × Reps · poids saisi en séance
+                </p>
               </div>
-              {picked.map((p, i) => (
-                <div key={p.exercise_id} className="grid grid-cols-[1fr_60px_60px_28px] items-center gap-2 rounded-md border border-border bg-background p-2">
-                  <span className="truncate text-sm font-semibold">{p.name}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    value={p.target_sets}
-                    onChange={(e) =>
-                      setPicked((s) =>
-                        s.map((x, j) => (j === i ? { ...x, target_sets: Number(e.target.value) } : x)),
-                      )
-                    }
-                    className="w-full rounded border border-input bg-card px-1 py-1 text-center text-sm"
-                    aria-label="Nombre de séries"
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    value={p.target_reps}
-                    onChange={(e) =>
-                      setPicked((s) =>
-                        s.map((x, j) => (j === i ? { ...x, target_reps: Number(e.target.value) } : x)),
-                      )
-                    }
-                    className="w-full rounded border border-input bg-card px-1 py-1 text-center text-sm"
-                    aria-label="Répétitions cibles"
-                  />
-                  <button
-                    onClick={() => setPicked((s) => s.filter((_, j) => j !== i))}
-                    className="text-muted-foreground hover:text-destructive"
-                    aria-label="Retirer"
+
+              {picked.map((p, i) => {
+                const isAdvanced = !!p.reps_per_set;
+                return (
+                  <div
+                    key={p.exercise_id}
+                    className="rounded-md border border-border bg-background p-2.5"
                   >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 flex-col">
+                        <button
+                          onClick={() => move(i, -1)}
+                          disabled={i === 0}
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                          aria-label="Monter"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => move(i, 1)}
+                          disabled={i === picked.length - 1}
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                          aria-label="Descendre"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</span>
+
+                      {!isAdvanced && (
+                        <>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              value={p.target_sets}
+                              onChange={(e) =>
+                                setPicked((s) =>
+                                  s.map((x, j) =>
+                                    j === i ? { ...x, target_sets: Number(e.target.value) || 1 } : x,
+                                  ),
+                                )
+                              }
+                              className="w-12 rounded border border-input bg-card px-1 py-1 text-center text-sm"
+                              aria-label="Séries"
+                            />
+                            <span className="text-xs text-muted-foreground">séries</span>
+                          </label>
+                          <span className="text-muted-foreground">×</span>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              value={p.target_reps}
+                              onChange={(e) =>
+                                setPicked((s) =>
+                                  s.map((x, j) =>
+                                    j === i ? { ...x, target_reps: Number(e.target.value) || 1 } : x,
+                                  ),
+                                )
+                              }
+                              className="w-12 rounded border border-input bg-card px-1 py-1 text-center text-sm"
+                              aria-label="Reps"
+                            />
+                            <span className="text-xs text-muted-foreground">reps</span>
+                          </label>
+                        </>
+                      )}
+
+                      <button
+                        onClick={() => toggleAdvanced(p.exercise_id)}
+                        className={`rounded-md p-1.5 text-xs ${
+                          isAdvanced ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+                        }`}
+                        title="Reps variables (myo-reps, dégressif…)"
+                        aria-label="Reps variables"
+                      >
+                        <ListOrdered className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setPicked((s) => s.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label="Retirer"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {isAdvanced && p.reps_per_set && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Reps par série
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.reps_per_set.map((reps, sIdx) => (
+                            <div
+                              key={sIdx}
+                              className="flex items-center gap-1 rounded border border-input bg-card px-1.5 py-1"
+                            >
+                              <span className="text-[10px] text-muted-foreground">S{sIdx + 1}</span>
+                              <input
+                                type="number"
+                                min={1}
+                                inputMode="numeric"
+                                value={reps}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value) || 1;
+                                  setPicked((s) =>
+                                    s.map((x, j) =>
+                                      j === i && x.reps_per_set
+                                        ? {
+                                            ...x,
+                                            reps_per_set: x.reps_per_set.map((r, k) =>
+                                              k === sIdx ? val : r,
+                                            ),
+                                          }
+                                        : x,
+                                    ),
+                                  );
+                                }}
+                                className="w-10 bg-transparent text-center text-sm focus:outline-none"
+                              />
+                              <button
+                                onClick={() =>
+                                  setPicked((s) =>
+                                    s.map((x, j) =>
+                                      j === i && x.reps_per_set && x.reps_per_set.length > 1
+                                        ? {
+                                            ...x,
+                                            reps_per_set: x.reps_per_set.filter((_, k) => k !== sIdx),
+                                          }
+                                        : x,
+                                    ),
+                                  )
+                                }
+                                className="text-muted-foreground hover:text-destructive"
+                                aria-label="Retirer série"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() =>
+                              setPicked((s) =>
+                                s.map((x, j) =>
+                                  j === i && x.reps_per_set
+                                    ? {
+                                        ...x,
+                                        reps_per_set: [
+                                          ...x.reps_per_set,
+                                          x.reps_per_set[x.reps_per_set.length - 1] ?? 8,
+                                        ],
+                                      }
+                                    : x,
+                                ),
+                              )
+                            }
+                            className="rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                          >
+                            + série
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <p className="px-2 text-[10px] text-muted-foreground">
-                💡 Le poids (kg) sera saisi pendant la séance.
+                💡 Le poids (kg) sera saisi pendant la séance. Active <ListOrdered className="inline h-3 w-3" /> pour des reps différentes par série (myo-reps).
               </p>
             </div>
           )}
@@ -461,7 +721,16 @@ function RoutineBuilder({
                 <button
                   key={e.id}
                   onClick={() =>
-                    setPicked((s) => [...s, { exercise_id: e.id, name: e.name, target_sets: 3, target_reps: 10 }])
+                    setPicked((s) => [
+                      ...s,
+                      {
+                        exercise_id: e.id,
+                        name: e.name,
+                        target_sets: 3,
+                        target_reps: 10,
+                        reps_per_set: null,
+                      },
+                    ])
                   }
                   className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-secondary"
                 >
@@ -472,7 +741,7 @@ function RoutineBuilder({
             </div>
           </div>
         </div>
-        <div className="border-t border-border p-5">
+        <div className="shrink-0 border-t border-border p-5">
           <button
             onClick={() => saveMut.mutate()}
             disabled={!name.trim() || picked.length === 0 || saveMut.isPending}

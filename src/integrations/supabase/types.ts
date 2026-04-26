@@ -43,6 +43,7 @@ export type Database = {
           created_at: string
           equipment: string
           equipment_detail: string | null
+          has_bench: boolean
           id: string
           image_url: string | null
           incline: string | null
@@ -56,6 +57,7 @@ export type Database = {
           created_at?: string
           equipment: string
           equipment_detail?: string | null
+          has_bench?: boolean
           id?: string
           image_url?: string | null
           incline?: string | null
@@ -69,6 +71,7 @@ export type Database = {
           created_at?: string
           equipment?: string
           equipment_detail?: string | null
+          has_bench?: boolean
           id?: string
           image_url?: string | null
           incline?: string | null
@@ -131,6 +134,7 @@ export type Database = {
           id: string
           notes: string | null
           position: number
+          reps_per_set: Json | null
           routine_id: string
           target_reps: number
           target_sets: number
@@ -140,6 +144,7 @@ export type Database = {
           id?: string
           notes?: string | null
           position?: number
+          reps_per_set?: Json | null
           routine_id: string
           target_reps?: number
           target_sets?: number
@@ -149,6 +154,7 @@ export type Database = {
           id?: string
           notes?: string | null
           position?: number
+          reps_per_set?: Json | null
           routine_id?: string
           target_reps?: number
           target_sets?: number
@@ -176,6 +182,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          position: number
           updated_at: string
           user_id: string
         }
@@ -184,6 +191,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          position?: number
           updated_at?: string
           user_id: string
         }
@@ -192,6 +200,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          position?: number
           updated_at?: string
           user_id?: string
         }
