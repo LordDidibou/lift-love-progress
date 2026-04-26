@@ -3,14 +3,22 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Dumbbell } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 
+const searchSchema = z.object({
+  group: z.string().optional(),
+  q: z.string().optional(),
+});
+
 export const Route = createFileRoute("/app/exercise/$exerciseId")({
+  validateSearch: searchSchema,
   component: ExerciseDetailPage,
 });
 
 function ExerciseDetailPage() {
   const { exerciseId } = Route.useParams();
+  const { group, q } = Route.useSearch();
 
   const { data: exercise } = useQuery({
     queryKey: ["exercise", exerciseId],
@@ -54,11 +62,14 @@ function ExerciseDetailPage() {
     .sort(([, a], [, b]) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
+  const backSearch = { group: group || undefined, q: q || undefined };
+  const backLabel = group ? `Retour à ${group}` : "Retour aux exercices";
+
   if (!exercise) {
     return (
       <div className="space-y-4">
-        <Link to="/app/exercises" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Retour
+        <Link to="/app/exercises" search={backSearch} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> {backLabel}
         </Link>
         <p className="text-sm text-muted-foreground">Chargement…</p>
       </div>
@@ -67,8 +78,8 @@ function ExerciseDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/app/exercises" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Retour
+      <Link to="/app/exercises" search={backSearch} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
       </Link>
 
       <div className="flex flex-col gap-4 sm:flex-row">
@@ -83,8 +94,7 @@ function ExerciseDetailPage() {
           <h1 className="text-3xl font-bold">{exercise.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {exercise.muscle_group} · {exercise.equipment}
-            {exercise.equipment_detail ? ` · ${exercise.equipment_detail}` : ""}
-            {exercise.incline ? ` · ${exercise.incline}` : ""}
+            {exercise.has_bench && exercise.incline ? ` · banc ${exercise.incline.toLowerCase()}` : ""}
           </p>
         </div>
       </div>
@@ -107,7 +117,7 @@ function ExerciseDetailPage() {
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="truncate text-sm font-semibold">{s.name}</p>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {format(new Date(s.date), "d MMM yyyy", { locale: fr })}
+                    {format(new Date(s.date), "dd/MM/yyyy", { locale: fr })}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
