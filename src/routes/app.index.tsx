@@ -108,13 +108,29 @@ function HomePage() {
       </div>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold">Séances récentes</h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Séances récentes</h2>
+          <Link
+            to="/app/history"
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            Voir tout →
+          </Link>
+        </div>
         {workouts && workouts.length > 0 ? (
-          <div className="grid gap-3">
-            {workouts.map((w) => (
-              <WorkoutRow key={w.id} workout={w} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-3">
+              {workouts.map((w) => (
+                <WorkoutRow key={w.id} workout={w} />
+              ))}
+            </div>
+            <Link
+              to="/app/history"
+              className="mt-3 flex w-full items-center justify-center rounded-lg border border-dashed border-border py-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-primary"
+            >
+              Voir l'historique complet
+            </Link>
+          </>
         ) : (
           <EmptyCard
             title="Pas encore de séance"
