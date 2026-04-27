@@ -182,7 +182,16 @@ function WorkoutRow({ workout }: { workout: WorkoutLite }) {
             <MoreVertical className="h-4 w-4" />
           </button>
           {open && (
-            <div className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+            <div className="absolute right-0 top-full z-10 mt-1 w-52 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  navigate({ to: "/app/workout/new", search: { workoutId: workout.id } });
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+              >
+                <FileEdit className="h-3.5 w-3.5" /> Modifier la séance
+              </button>
               <button
                 onClick={() => {
                   setOpen(false);
