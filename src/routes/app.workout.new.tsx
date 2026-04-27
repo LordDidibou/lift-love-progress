@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
+import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
@@ -41,12 +42,12 @@ function NewWorkoutPage() {
   const [startedAt, setStartedAt] = useState<Date>(() => new Date());
   const [hydrated, setHydrated] = useState(false);
 
-  // Auto-nom : "Premier exo - dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
+  // Auto-nom : "Premier exo – dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
   useEffect(() => {
     if (nameTouched || isEdit) return;
     const first = items[0]?.name;
     if (first) {
-      setName(`${first} – ${format(startedAt, "dd/MM/yyyy")}`);
+      setName(withDateSuffix(first, startedAt));
     } else {
       setName("");
     }
@@ -69,7 +70,7 @@ function NewWorkoutPage() {
 
   useEffect(() => {
     if (!existing || hydrated) return;
-    setName(existing.name);
+    setName(stripTrailingDate(existing.name));
     setNameTouched(true);
     setStartedAt(new Date(existing.started_at));
     const grouped = new Map<string, LocalEx>();
@@ -168,7 +169,7 @@ function NewWorkoutPage() {
     mutationFn: async () => {
       if (!user) throw new Error("Non connecté");
 
-      const finalName = name.trim() || `Séance – ${format(startedAt, "dd/MM/yyyy")}`;
+      const finalName = withDateSuffix(stripTrailingDate(name) || "Séance", startedAt);
 
       let wId: string;
       if (isEdit && workoutId) {

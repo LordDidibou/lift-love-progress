@@ -125,7 +125,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 md:px-6 md:pt-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl overflow-x-hidden px-4 pb-24 pt-4 md:px-6 md:pt-8">{children}</main>
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
