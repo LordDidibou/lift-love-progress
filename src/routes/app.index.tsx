@@ -222,7 +222,7 @@ function WorkoutRow({ workout }: { workout: WorkoutLite }) {
 
 function WorkoutEditDialog({ workout, onClose }: { workout: WorkoutLite; onClose: () => void }) {
   const qc = useQueryClient();
-  const [name, setName] = useState(workout.name);
+  const [name, setName] = useState(stripTrailingDate(workout.name));
   const [date, setDate] = useState(format(new Date(workout.started_at), "yyyy-MM-dd"));
 
   const mut = useMutation({
@@ -231,9 +231,10 @@ function WorkoutEditDialog({ workout, onClose }: { workout: WorkoutLite; onClose
       const [y, m, d] = date.split("-").map(Number);
       const next = new Date(original);
       next.setFullYear(y, m - 1, d);
+      const finalName = withDateSuffix(name, next);
       const { error } = await supabase
         .from("workouts")
-        .update({ name: name.trim(), started_at: next.toISOString() })
+        .update({ name: finalName, started_at: next.toISOString() })
         .eq("id", workout.id);
       if (error) throw error;
     },
