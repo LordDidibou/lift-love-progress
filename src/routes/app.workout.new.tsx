@@ -42,12 +42,12 @@ function NewWorkoutPage() {
   const [startedAt, setStartedAt] = useState<Date>(() => new Date());
   const [hydrated, setHydrated] = useState(false);
 
-  // Auto-nom : "Premier exo - dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
+  // Auto-nom : "Premier exo – dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
   useEffect(() => {
     if (nameTouched || isEdit) return;
     const first = items[0]?.name;
     if (first) {
-      setName(`${first} – ${format(startedAt, "dd/MM/yyyy")}`);
+      setName(withDateSuffix(first, startedAt));
     } else {
       setName("");
     }
