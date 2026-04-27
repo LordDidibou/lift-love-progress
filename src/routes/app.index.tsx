@@ -7,6 +7,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 
 export const Route = createFileRoute("/app/")({
   component: HomePage,
