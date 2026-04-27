@@ -305,11 +305,11 @@ function StatCard({
         </span>
         <Icon className={`h-4 w-4 ${accent ? "text-accent" : "text-muted-foreground"}`} />
       </div>
-      <div className="mt-2 flex items-baseline gap-1">
-        <span className={`font-display text-3xl font-bold ${accent ? "text-gradient" : ""}`}>
+      <div className="mt-2 flex min-w-0 items-baseline gap-1">
+        <span className={`min-w-0 truncate font-display text-2xl font-bold leading-tight sm:text-3xl ${accent ? "text-gradient" : ""}`}>
           {value}
         </span>
-        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+        {unit && <span className="shrink-0 text-xs text-muted-foreground">{unit}</span>}
       </div>
     </div>
   );
