@@ -18,6 +18,7 @@ import { fr } from "date-fns/locale";
 import { Trophy, Activity, TrendingUp, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { formatCompact } from "@/lib/formatNumber";
 
 export const Route = createFileRoute("/app/stats")({
   component: StatsPage,
@@ -199,7 +200,7 @@ function StatsPage() {
       <div className="grid grid-cols-3 gap-3">
         <Card icon={Activity} label="Séances" value={`${filteredWorkouts.length}`} />
         <Card icon={Trophy} label="Séries" value={`${totals.totalSets}`} />
-        <Card icon={TrendingUp} label="Volume (kg)" value={`${totals.totalVol.toLocaleString("fr-FR")}`} accent />
+        <Card icon={TrendingUp} label="Volume (kg)" value={formatCompact(totals.totalVol)} accent />
       </div>
 
       <section className="rounded-xl border border-border bg-card p-5 shadow-card">
@@ -386,7 +387,7 @@ function Card({
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
         <Icon className={`h-4 w-4 ${accent ? "text-accent" : "text-muted-foreground"}`} />
       </div>
-      <div className={`mt-2 font-display text-2xl font-bold ${accent ? "text-gradient" : ""}`}>{value}</div>
+      <div className={`mt-2 truncate font-display text-2xl font-bold leading-tight ${accent ? "text-gradient" : ""}`}>{value}</div>
     </div>
   );
 }

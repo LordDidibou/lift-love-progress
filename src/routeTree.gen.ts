@@ -17,7 +17,9 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppStatsRouteImport } from './routes/app.stats'
 import { Route as AppRoutinesRouteImport } from './routes/app.routines'
 import { Route as AppProfileRouteImport } from './routes/app.profile'
+import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppExercisesRouteImport } from './routes/app.exercises'
+import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppWorkoutNewRouteImport } from './routes/app.workout.new'
 import { Route as AppWorkoutWorkoutIdRouteImport } from './routes/app.workout.$workoutId'
 import { Route as AppExerciseExerciseIdRouteImport } from './routes/app.exercise.$exerciseId'
@@ -62,9 +64,19 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppExercisesRoute = AppExercisesRouteImport.update({
   id: '/exercises',
   path: '/exercises',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => AppRoute,
 } as any)
 const AppWorkoutNewRoute = AppWorkoutNewRouteImport.update({
@@ -89,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/app/exercises': typeof AppExercisesRoute
+  '/app/history': typeof AppHistoryRoute
   '/app/profile': typeof AppProfileRoute
   '/app/routines': typeof AppRoutinesRoute
   '/app/stats': typeof AppStatsRoute
@@ -102,6 +115,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/app/exercises': typeof AppExercisesRoute
+  '/app/history': typeof AppHistoryRoute
   '/app/profile': typeof AppProfileRoute
   '/app/routines': typeof AppRoutinesRoute
   '/app/stats': typeof AppStatsRoute
@@ -117,6 +131,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/app/exercises': typeof AppExercisesRoute
+  '/app/history': typeof AppHistoryRoute
   '/app/profile': typeof AppProfileRoute
   '/app/routines': typeof AppRoutinesRoute
   '/app/stats': typeof AppStatsRoute
@@ -133,6 +148,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/app/exercises'
+    | '/app/history'
     | '/app/profile'
     | '/app/routines'
     | '/app/stats'
@@ -146,6 +162,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/app/exercises'
+    | '/app/history'
     | '/app/profile'
     | '/app/routines'
     | '/app/stats'
@@ -160,6 +177,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/app/exercises'
+    | '/app/history'
     | '/app/profile'
     | '/app/routines'
     | '/app/stats'
@@ -234,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/history': {
+      id: '/app/history'
+      path: '/history'
+      fullPath: '/app/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/exercises': {
       id: '/app/exercises'
       path: '/exercises'
@@ -267,6 +292,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppExercisesRoute: typeof AppExercisesRoute
+  AppHistoryRoute: typeof AppHistoryRoute
   AppProfileRoute: typeof AppProfileRoute
   AppRoutinesRoute: typeof AppRoutinesRoute
   AppStatsRoute: typeof AppStatsRoute
@@ -278,6 +304,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppExercisesRoute: AppExercisesRoute,
+  AppHistoryRoute: AppHistoryRoute,
   AppProfileRoute: AppProfileRoute,
   AppRoutinesRoute: AppRoutinesRoute,
   AppStatsRoute: AppStatsRoute,

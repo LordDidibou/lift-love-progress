@@ -275,7 +275,7 @@ function ExerciseCard({
   const isOwn = ex.is_custom && ex.user_id === currentUserId;
 
   return (
-    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-border bg-card p-3">
+    <div className="relative flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
       <Link
         to="/app/exercise/$exerciseId"
         params={{ exerciseId: ex.id }}

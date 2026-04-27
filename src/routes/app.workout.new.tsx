@@ -244,7 +244,7 @@ function NewWorkoutPage() {
   const dateInputValue = format(startedAt, "yyyy-MM-dd");
 
   return (
-    <div className="space-y-5 pb-28">
+    <div className="space-y-5 pb-44 md:pb-28">
       <div className="space-y-2">
         <input
           value={name}
