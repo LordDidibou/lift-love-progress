@@ -169,7 +169,7 @@ function NewWorkoutPage() {
     mutationFn: async () => {
       if (!user) throw new Error("Non connecté");
 
-      const finalName = name.trim() || `Séance – ${format(startedAt, "dd/MM/yyyy")}`;
+      const finalName = withDateSuffix(stripTrailingDate(name) || "Séance", startedAt);
 
       let wId: string;
       if (isEdit && workoutId) {
