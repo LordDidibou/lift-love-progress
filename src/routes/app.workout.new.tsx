@@ -70,7 +70,7 @@ function NewWorkoutPage() {
 
   useEffect(() => {
     if (!existing || hydrated) return;
-    setName(existing.name);
+    setName(stripTrailingDate(existing.name));
     setNameTouched(true);
     setStartedAt(new Date(existing.started_at));
     const grouped = new Map<string, LocalEx>();
