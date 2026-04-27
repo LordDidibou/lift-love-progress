@@ -99,9 +99,9 @@ function ExerciseDetailPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+      <section className="overflow-hidden rounded-xl border border-border bg-card p-5 shadow-card">
         <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Description</h2>
-        <p className="whitespace-pre-line text-sm leading-relaxed">
+        <p className="whitespace-pre-line break-words text-sm leading-relaxed">
           {exercise.instructions?.trim() || "Pas encore de description pour cet exercice."}
         </p>
       </section>
