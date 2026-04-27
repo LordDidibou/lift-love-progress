@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
+import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
