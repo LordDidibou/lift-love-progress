@@ -23,6 +23,12 @@ const searchSchema = z.object({
   workoutId: z.string().optional(),
 });
 
+const searchSchema = z.object({
+  routineId: z.string().optional(),
+  workoutId: z.string().optional(),
+  draftId: z.string().optional(),
+});
+
 export const Route = createFileRoute("/app/workout/new")({
   validateSearch: searchSchema,
   component: NewWorkoutPage,
