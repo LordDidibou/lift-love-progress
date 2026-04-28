@@ -21,11 +21,6 @@ import {
 const searchSchema = z.object({
   routineId: z.string().optional(),
   workoutId: z.string().optional(),
-});
-
-const searchSchema = z.object({
-  routineId: z.string().optional(),
-  workoutId: z.string().optional(),
   draftId: z.string().optional(),
 });
 
