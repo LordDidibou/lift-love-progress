@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Plus, Activity, TrendingUp, Calendar, Flame, MoreVertical, Pencil, Trash2, FileEdit } from "lucide-react";
+import { Plus, Activity, TrendingUp, Calendar, Flame, MoreVertical, Pencil, Trash2, FileEdit, Play, X } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
+import { clearDraftLocal } from "@/lib/workoutDraft";
 
 export const Route = createFileRoute("/app/")({
   component: HomePage,
