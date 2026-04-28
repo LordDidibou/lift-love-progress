@@ -40,8 +40,26 @@ function HomePage() {
       const { data, error } = await supabase
         .from("workouts")
         .select("id, name, started_at, ended_at")
+        .eq("status", "completed")
         .order("started_at", { ascending: false })
         .limit(8);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Brouillon en cours (séance non terminée)
+  const { data: draft } = useQuery({
+    queryKey: ["workouts", "draft", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("id, name, started_at")
+        .eq("status", "draft")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
