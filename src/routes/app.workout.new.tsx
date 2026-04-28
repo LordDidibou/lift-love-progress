@@ -324,6 +324,7 @@ function NewWorkoutPage() {
           .update({
             name: finalName,
             started_at: startedAt.toISOString(),
+            status: "completed",
           })
           .eq("id", workoutId);
         if (upErr) throw upErr;
@@ -334,6 +335,20 @@ function NewWorkoutPage() {
           .eq("workout_id", workoutId);
         if (delErr) throw delErr;
         wId = workoutId;
+      } else if (currentDraftId) {
+        // Promotion du brouillon en séance terminée
+        const { error: upErr } = await supabase
+          .from("workouts")
+          .update({
+            name: finalName,
+            started_at: startedAt.toISOString(),
+            ended_at: new Date().toISOString(),
+            status: "completed",
+          })
+          .eq("id", currentDraftId);
+        if (upErr) throw upErr;
+        await supabase.from("workout_sets").delete().eq("workout_id", currentDraftId);
+        wId = currentDraftId;
       } else {
         const { data: w, error } = await supabase
           .from("workouts")
@@ -343,6 +358,7 @@ function NewWorkoutPage() {
             name: finalName,
             started_at: startedAt.toISOString(),
             ended_at: new Date().toISOString(),
+            status: "completed",
           })
           .select()
           .single();
@@ -377,6 +393,8 @@ function NewWorkoutPage() {
       return wId;
     },
     onSuccess: () => {
+      finishedRef.current = true;
+      clearDraftLocal();
       toast.success(isEdit ? "Séance mise à jour" : "Séance enregistrée 💪");
       qc.invalidateQueries({ queryKey: ["workouts"] });
       qc.invalidateQueries({ queryKey: ["workout"] });
@@ -386,6 +404,50 @@ function NewWorkoutPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
+
+  // Garde de navigation : si brouillon non vide non terminé, on demande confirmation
+  const dirty = isDraftMode && items.length > 0 && !finishedRef.current;
+  const { proceed, reset, status } = useBlocker({
+    shouldBlockFn: () => dirty,
+    withResolver: true,
+  });
+  useEffect(() => {
+    if (status === "blocked") setShowLeaveDialog(true);
+  }, [status]);
+
+  const handleAbandon = useCallback(async () => {
+    if (currentDraftId) {
+      await supabase.from("workout_sets").delete().eq("workout_id", currentDraftId);
+      await supabase.from("workouts").delete().eq("id", currentDraftId);
+    }
+    clearDraftLocal();
+    finishedRef.current = true;
+    setShowLeaveDialog(false);
+    proceed?.();
+  }, [currentDraftId, proceed]);
+
+  const handleKeepDraft = useCallback(async () => {
+    await saveDraft();
+    setShowLeaveDialog(false);
+    proceed?.();
+  }, [proceed, saveDraft]);
+
+  const handleStay = useCallback(() => {
+    setShowLeaveDialog(false);
+    reset?.();
+  }, [reset]);
+
+  // Avertissement avant fermeture d'onglet
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
 
   const dateInputValue = format(startedAt, "yyyy-MM-dd");
 
