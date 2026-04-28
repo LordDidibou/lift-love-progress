@@ -246,8 +246,8 @@ function NewWorkoutPage() {
   const dateInputValue = format(startedAt, "yyyy-MM-dd");
 
   return (
-    <div className="space-y-5 pb-44 md:pb-28">
-      <div className="space-y-2">
+    <div className="w-full max-w-full min-w-0 space-y-5 overflow-x-hidden pb-44 md:pb-28">
+      <div className="min-w-0 space-y-2">
         <input
           value={name}
           onChange={(e) => {
@@ -257,9 +257,9 @@ function NewWorkoutPage() {
           placeholder="Nom de la séance"
           className="w-full min-w-0 bg-transparent text-2xl font-bold focus:outline-none"
         />
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Calendar className="h-3.5 w-3.5" />
-          <span>Date :</span>
+        <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5 shrink-0" />
+          <span className="shrink-0">Date :</span>
           <input
             type="date"
             value={dateInputValue}
@@ -270,9 +270,9 @@ function NewWorkoutPage() {
               next.setFullYear(y, m - 1, d);
               setStartedAt(next);
             }}
-            className="rounded border border-input bg-background px-2 py-1 text-xs"
+            className="min-w-0 max-w-full rounded border border-input bg-background px-2 py-1 text-xs"
           />
-          <span className="ml-auto text-[10px] text-muted-foreground">
+          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
             {format(startedAt, "dd/MM/yyyy")}
           </span>
         </label>
@@ -280,7 +280,7 @@ function NewWorkoutPage() {
 
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Séries" value={`${totalDoneSets}`} />
-        <Stat label="Volume" value={`${Math.round(totalVolume)} kg`} />
+        <Stat label="Volume" value={`${formatCompact(totalVolume)} kg`} />
         <Stat label="Exos" value={`${items.length}`} accent />
       </div>
 
