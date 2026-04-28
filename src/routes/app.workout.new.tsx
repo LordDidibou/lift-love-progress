@@ -22,7 +22,7 @@ export const Route = createFileRoute("/app/workout/new")({
   component: NewWorkoutPage,
 });
 
-type LocalSet = { id: string; reps: number; weight: number; done: boolean };
+type LocalSet = { id: string; reps: number; weight: number; done: boolean; targetReps?: number };
 type LocalEx = { exercise_id: string; name: string; sets: LocalSet[] };
 
 function uid() {
@@ -127,9 +127,12 @@ function NewWorkoutPage() {
           return {
             exercise_id: re.exercise_id,
             name: re.exercises?.name ?? "—",
+            // reps initialisé à 0 pour laisser apparaître le placeholder éphémère
+            // (dernière perf, sinon target reps de la routine).
             sets: repsArr.map((reps) => ({
               id: uid(),
-              reps,
+              reps: 0,
+              targetReps: reps,
               weight: 0,
               done: false,
             })),
@@ -336,7 +339,8 @@ function NewWorkoutPage() {
                   const prev = setsPrev[sIdx + 1];
                   // Placeholder seulement si valeur 0 ET pas encore validé
                   const showWeightPh = !set.done && set.weight === 0 && prev !== undefined;
-                  const showRepsPh = !set.done && set.reps === 0 && prev !== undefined;
+                  const repsPh = prev?.reps ?? set.targetReps;
+                  const showRepsPh = !set.done && set.reps === 0 && repsPh !== undefined && repsPh > 0;
                   return (
                     <div
                       key={set.id}
@@ -366,7 +370,7 @@ function NewWorkoutPage() {
                       />
                       <DecimalInput
                         value={set.reps}
-                        placeholder={showRepsPh ? `${prev!.reps}` : ""}
+                        placeholder={showRepsPh ? `${repsPh}` : ""}
                         onValueChange={(v) =>
                           setItems((s) =>
                             s.map((x, i) =>
