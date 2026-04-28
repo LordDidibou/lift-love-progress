@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
+import { formatCompact } from "@/lib/formatNumber";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
@@ -140,7 +141,9 @@ function NewWorkoutPage() {
 
   // Dernières perfs pour placeholder
   const exerciseIds = useMemo(() => items.map((i) => i.exercise_id), [items]);
-  const { data: lastPerfs = {} } = useLastPerf(exerciseIds);
+  const { data: lastPerfs } = useLastPerf(exerciseIds);
+  const byExercise = lastPerfs?.byExercise ?? {};
+  const bySet = lastPerfs?.bySet ?? {};
 
   const totalDoneSets = useMemo(
     () => items.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0),
@@ -244,8 +247,8 @@ function NewWorkoutPage() {
   const dateInputValue = format(startedAt, "yyyy-MM-dd");
 
   return (
-    <div className="space-y-5 pb-44 md:pb-28">
-      <div className="space-y-2">
+    <div className="w-full max-w-full min-w-0 space-y-5 overflow-x-hidden pb-44 md:pb-28">
+      <div className="min-w-0 space-y-2">
         <input
           value={name}
           onChange={(e) => {
@@ -255,9 +258,9 @@ function NewWorkoutPage() {
           placeholder="Nom de la séance"
           className="w-full min-w-0 bg-transparent text-2xl font-bold focus:outline-none"
         />
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Calendar className="h-3.5 w-3.5" />
-          <span>Date :</span>
+        <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5 shrink-0" />
+          <span className="shrink-0">Date :</span>
           <input
             type="date"
             value={dateInputValue}
@@ -268,9 +271,9 @@ function NewWorkoutPage() {
               next.setFullYear(y, m - 1, d);
               setStartedAt(next);
             }}
-            className="rounded border border-input bg-background px-2 py-1 text-xs"
+            className="min-w-0 max-w-full rounded border border-input bg-background px-2 py-1 text-xs"
           />
-          <span className="ml-auto text-[10px] text-muted-foreground">
+          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
             {format(startedAt, "dd/MM/yyyy")}
           </span>
         </label>
@@ -278,19 +281,20 @@ function NewWorkoutPage() {
 
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Séries" value={`${totalDoneSets}`} />
-        <Stat label="Volume" value={`${Math.round(totalVolume)} kg`} />
+        <Stat label="Volume" value={`${formatCompact(totalVolume)} kg`} />
         <Stat label="Exos" value={`${items.length}`} accent />
       </div>
 
       <div className="space-y-3">
         {items.map((ex, exIdx) => {
-          const last = lastPerfs[ex.exercise_id];
+          const last = byExercise[ex.exercise_id];
+          const setsPrev = bySet[ex.exercise_id] ?? {};
           const lastLabel = last
             ? `Dernière : ${last.weight} kg × ${last.reps}`
             : null;
           return (
-            <div key={ex.exercise_id + exIdx} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between gap-2">
+            <div key={ex.exercise_id + exIdx} className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+              <div className="flex min-w-0 items-center justify-between gap-2">
                 <h3 className="min-w-0 flex-1 truncate font-bold">{ex.name}</h3>
                 <div className="flex shrink-0 items-center gap-0.5">
                   <button
@@ -319,23 +323,24 @@ function NewWorkoutPage() {
                 </div>
               </div>
               {lastLabel && (
-                <p className="mt-1 text-[11px] text-muted-foreground">{lastLabel}</p>
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">{lastLabel}</p>
               )}
-              <div className="mt-3 grid grid-cols-[40px_1fr_1fr_40px] items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <span>Set</span>
-                <span>Kg</span>
-                <span>Reps</span>
+              <div className="mt-3 grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2">
+                <span className="text-center">#</span>
+                <span className="pl-1">Kg</span>
+                <span className="pl-1">Reps</span>
                 <span></span>
               </div>
               <div className="mt-1 space-y-1.5">
                 {ex.sets.map((set, sIdx) => {
-                  // Placeholder seulement si valeur 0 ET pas encore touché ET dernière perf existe
-                  const showWeightPh = !set.done && set.weight === 0 && last !== undefined;
-                  const showRepsPh = !set.done && set.reps === 0 && last !== undefined;
+                  const prev = setsPrev[sIdx + 1];
+                  // Placeholder seulement si valeur 0 ET pas encore validé
+                  const showWeightPh = !set.done && set.weight === 0 && prev !== undefined;
+                  const showRepsPh = !set.done && set.reps === 0 && prev !== undefined;
                   return (
                     <div
                       key={set.id}
-                      className={`grid grid-cols-[40px_1fr_1fr_40px] items-center gap-2 rounded-md p-1.5 ${
+                      className={`grid min-w-0 grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 rounded-md p-1 sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2 sm:p-1.5 ${
                         set.done ? "bg-primary/10" : ""
                       }`}
                     >
@@ -344,7 +349,7 @@ function NewWorkoutPage() {
                       </span>
                       <DecimalInput
                         value={set.weight}
-                        placeholder={showWeightPh ? `${last!.weight}` : ""}
+                        placeholder={showWeightPh ? `${prev!.weight}` : ""}
                         onValueChange={(v) =>
                           setItems((s) =>
                             s.map((x, i) =>
@@ -357,11 +362,11 @@ function NewWorkoutPage() {
                             ),
                           )
                         }
-                        className="rounded-md border border-input bg-background px-2 py-2 text-center text-sm focus:border-primary focus:outline-none"
+                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
                       />
                       <DecimalInput
                         value={set.reps}
-                        placeholder={showRepsPh ? `${last!.reps}` : ""}
+                        placeholder={showRepsPh ? `${prev!.reps}` : ""}
                         onValueChange={(v) =>
                           setItems((s) =>
                             s.map((x, i) =>
@@ -376,7 +381,7 @@ function NewWorkoutPage() {
                             ),
                           )
                         }
-                        className="rounded-md border border-input bg-background px-2 py-2 text-center text-sm focus:border-primary focus:outline-none"
+                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
                       />
                       <button
                         onClick={() =>
@@ -482,12 +487,12 @@ function NewWorkoutPage() {
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3">
-      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {accent && <Flame className="h-3 w-3 text-accent" />}
-        {label}
+    <div className="min-w-0 rounded-md border border-border bg-card p-3">
+      <p className="flex items-center gap-1 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {accent && <Flame className="h-3 w-3 shrink-0 text-accent" />}
+        <span className="truncate">{label}</span>
       </p>
-      <p className={`mt-1 font-display text-xl font-bold ${accent ? "text-gradient" : ""}`}>{value}</p>
+      <p className={`mt-1 truncate font-display text-xl font-bold ${accent ? "text-gradient" : ""}`}>{value}</p>
     </div>
   );
 }

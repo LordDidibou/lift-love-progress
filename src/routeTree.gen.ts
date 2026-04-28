@@ -19,7 +19,6 @@ import { Route as AppRoutinesRouteImport } from './routes/app.routines'
 import { Route as AppProfileRouteImport } from './routes/app.profile'
 import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppExercisesRouteImport } from './routes/app.exercises'
-import { Route as AppHistoryRouteImport } from './routes/app.history'
 import { Route as AppWorkoutNewRouteImport } from './routes/app.workout.new'
 import { Route as AppWorkoutWorkoutIdRouteImport } from './routes/app.workout.$workoutId'
 import { Route as AppExerciseExerciseIdRouteImport } from './routes/app.exercise.$exerciseId'
@@ -72,11 +71,6 @@ const AppHistoryRoute = AppHistoryRouteImport.update({
 const AppExercisesRoute = AppExercisesRouteImport.update({
   id: '/exercises',
   path: '/exercises',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHistoryRoute = AppHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
   getParentRoute: () => AppRoute,
 } as any)
 const AppWorkoutNewRoute = AppWorkoutNewRouteImport.update({
