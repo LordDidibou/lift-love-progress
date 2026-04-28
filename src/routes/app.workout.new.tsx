@@ -286,13 +286,14 @@ function NewWorkoutPage() {
 
       <div className="space-y-3">
         {items.map((ex, exIdx) => {
-          const last = lastPerfs[ex.exercise_id];
+          const last = byExercise[ex.exercise_id];
+          const setsPrev = bySet[ex.exercise_id] ?? {};
           const lastLabel = last
             ? `Dernière : ${last.weight} kg × ${last.reps}`
             : null;
           return (
-            <div key={ex.exercise_id + exIdx} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between gap-2">
+            <div key={ex.exercise_id + exIdx} className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+              <div className="flex min-w-0 items-center justify-between gap-2">
                 <h3 className="min-w-0 flex-1 truncate font-bold">{ex.name}</h3>
                 <div className="flex shrink-0 items-center gap-0.5">
                   <button
@@ -321,23 +322,24 @@ function NewWorkoutPage() {
                 </div>
               </div>
               {lastLabel && (
-                <p className="mt-1 text-[11px] text-muted-foreground">{lastLabel}</p>
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">{lastLabel}</p>
               )}
-              <div className="mt-3 grid grid-cols-[40px_1fr_1fr_40px] items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <span>Set</span>
-                <span>Kg</span>
-                <span>Reps</span>
+              <div className="mt-3 grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2">
+                <span className="text-center">#</span>
+                <span className="pl-1">Kg</span>
+                <span className="pl-1">Reps</span>
                 <span></span>
               </div>
               <div className="mt-1 space-y-1.5">
                 {ex.sets.map((set, sIdx) => {
-                  // Placeholder seulement si valeur 0 ET pas encore touché ET dernière perf existe
-                  const showWeightPh = !set.done && set.weight === 0 && last !== undefined;
-                  const showRepsPh = !set.done && set.reps === 0 && last !== undefined;
+                  const prev = setsPrev[sIdx + 1];
+                  // Placeholder seulement si valeur 0 ET pas encore validé
+                  const showWeightPh = !set.done && set.weight === 0 && prev !== undefined;
+                  const showRepsPh = !set.done && set.reps === 0 && prev !== undefined;
                   return (
                     <div
                       key={set.id}
-                      className={`grid grid-cols-[40px_1fr_1fr_40px] items-center gap-2 rounded-md p-1.5 ${
+                      className={`grid min-w-0 grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 rounded-md p-1 sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2 sm:p-1.5 ${
                         set.done ? "bg-primary/10" : ""
                       }`}
                     >
@@ -346,7 +348,7 @@ function NewWorkoutPage() {
                       </span>
                       <DecimalInput
                         value={set.weight}
-                        placeholder={showWeightPh ? `${last!.weight}` : ""}
+                        placeholder={showWeightPh ? `${prev!.weight}` : ""}
                         onValueChange={(v) =>
                           setItems((s) =>
                             s.map((x, i) =>
@@ -359,11 +361,11 @@ function NewWorkoutPage() {
                             ),
                           )
                         }
-                        className="rounded-md border border-input bg-background px-2 py-2 text-center text-sm focus:border-primary focus:outline-none"
+                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
                       />
                       <DecimalInput
                         value={set.reps}
-                        placeholder={showRepsPh ? `${last!.reps}` : ""}
+                        placeholder={showRepsPh ? `${prev!.reps}` : ""}
                         onValueChange={(v) =>
                           setItems((s) =>
                             s.map((x, i) =>
@@ -378,7 +380,7 @@ function NewWorkoutPage() {
                             ),
                           )
                         }
-                        className="rounded-md border border-input bg-background px-2 py-2 text-center text-sm focus:border-primary focus:outline-none"
+                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
                       />
                       <button
                         onClick={() =>
