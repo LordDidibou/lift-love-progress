@@ -12,8 +12,9 @@ export type LastPerfResult = {
 
 /**
  * Récupère la dernière performance enregistrée pour chaque exercice donné.
- * - `byExercise[exId]` : 1re série de la séance la plus récente.
- * - `bySet[exId][setNumber]` : série n° N de la séance la plus récente.
+ * Note: PostgREST `order(..., foreignTable)` ne trie PAS les lignes parentes,
+ * il faut donc déterminer le workout le plus récent côté client à partir de
+ * `workouts.started_at` embarqué dans chaque set.
  */
 export function useLastPerf(exerciseIds: string[]) {
   const key = [...exerciseIds].sort().join(",");
@@ -24,34 +25,39 @@ export function useLastPerf(exerciseIds: string[]) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workout_sets")
-        .select("exercise_id, reps, weight, set_number, workout_id, workouts!inner(started_at)")
+        .select(
+          "exercise_id, reps, weight, set_number, workout_id, workouts!inner(started_at, status)",
+        )
         .in("exercise_id", exerciseIds)
-        .order("started_at", { ascending: false, foreignTable: "workouts" })
-        .limit(2000);
+        .limit(5000);
       if (error) throw error;
 
-      // Pour chaque exercice, retient le workout_id le plus récent.
-      const latestWorkoutByEx = new Map<string, string>();
-      for (const s of data ?? []) {
-        if (!latestWorkoutByEx.has(s.exercise_id)) {
-          latestWorkoutByEx.set(s.exercise_id, s.workout_id);
+      // Pour chaque exercice : trouver le workout_id le plus récent (started_at max),
+      // en ignorant les brouillons (status = 'draft').
+      const latestByEx = new Map<string, { workoutId: string; startedAt: number }>();
+      for (const s of (data ?? []) as Array<{
+        exercise_id: string;
+        workout_id: string;
+        workouts: { started_at: string; status: string | null } | null;
+      }>) {
+        if (s.workouts?.status === "draft") continue;
+        const ts = s.workouts?.started_at ? new Date(s.workouts.started_at).getTime() : 0;
+        const cur = latestByEx.get(s.exercise_id);
+        if (!cur || ts > cur.startedAt) {
+          latestByEx.set(s.exercise_id, { workoutId: s.workout_id, startedAt: ts });
         }
       }
 
       const bySet: Record<string, Record<number, LastPerfEntry>> = {};
       const byExercise: Record<string, LastPerfEntry> = {};
       for (const s of data ?? []) {
-        const wantW = latestWorkoutByEx.get(s.exercise_id);
-        if (s.workout_id !== wantW) continue;
+        const want = latestByEx.get(s.exercise_id);
+        if (!want || s.workout_id !== want.workoutId) continue;
         const entry = { weight: Number(s.weight), reps: Number(s.reps) };
         if (!bySet[s.exercise_id]) bySet[s.exercise_id] = {};
         bySet[s.exercise_id][s.set_number] = entry;
-        // 1re série => byExercise
-        if (s.set_number === 1 || !byExercise[s.exercise_id]) {
-          byExercise[s.exercise_id] = entry;
-        }
       }
-      // S'assurer que byExercise = série 1 si dispo
+      // byExercise = série n° min disponible dans la dernière séance
       for (const exId of Object.keys(bySet)) {
         const sets = bySet[exId];
         const minN = Math.min(...Object.keys(sets).map(Number));
