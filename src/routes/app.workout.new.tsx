@@ -370,7 +370,7 @@ function NewWorkoutPage() {
                       />
                       <DecimalInput
                         value={set.reps}
-                        placeholder={showRepsPh ? `${prev!.reps}` : ""}
+                        placeholder={showRepsPh ? `${repsPh}` : ""}
                         onValueChange={(v) =>
                           setItems((s) =>
                             s.map((x, i) =>
