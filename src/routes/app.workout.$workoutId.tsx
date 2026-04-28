@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Pencil } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { ArrowLeft, Calendar, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/workout/$workoutId")({
@@ -11,6 +13,7 @@ export const Route = createFileRoute("/app/workout/$workoutId")({
 
 function WorkoutDetailPage() {
   const { workoutId } = Route.useParams();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["workout", workoutId],
@@ -28,10 +31,18 @@ function WorkoutDetailPage() {
   if (isLoading) return <div className="text-sm text-muted-foreground">Chargement…</div>;
   if (!data) return <div>Introuvable</div>;
 
-  const grouped = new Map<string, { name: string; sets: typeof data.workout_sets }>();
+  type Set = (typeof data.workout_sets)[number];
+  const grouped = new Map<string, { displayName: string; baseName: string; sets: Set[] }>();
   data.workout_sets.forEach((s) => {
     const key = s.exercise_id;
-    if (!grouped.has(key)) grouped.set(key, { name: s.exercises?.name ?? "—", sets: [] });
+    if (!grouped.has(key)) {
+      const baseName = s.exercises?.name ?? "—";
+      grouped.set(key, {
+        baseName,
+        displayName: s.exercise_name_override ?? baseName,
+        sets: [],
+      });
+    }
     grouped.get(key)!.sets.push(s);
   });
   const totalVolume = data.workout_sets.reduce((a, s) => a + Number(s.reps) * Number(s.weight), 0);
@@ -78,22 +89,124 @@ function WorkoutDetailPage() {
       </div>
 
       <div className="space-y-3">
-        {[...grouped.values()].map((g) => (
-          <div key={g.name} className="rounded-lg border border-border bg-card p-4">
-            <h3 className="font-bold">{g.name}</h3>
-            <div className="mt-3 space-y-1">
-              {g.sets.map((s, i) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between rounded-md bg-secondary/50 px-3 py-2 text-sm"
-                >
-                  <span className="text-muted-foreground">Série {i + 1}</span>
-                  <span className="font-semibold">
-                    {s.weight} kg × {s.reps}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {[...grouped.entries()].map(([exerciseId, g]) => (
+          <ExerciseBlock
+            key={exerciseId}
+            workoutId={workoutId}
+            exerciseId={exerciseId}
+            displayName={g.displayName}
+            baseName={g.baseName}
+            sets={g.sets}
+            onUpdated={() => qc.invalidateQueries({ queryKey: ["workout", workoutId] })}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ExerciseBlock({
+  workoutId,
+  exerciseId,
+  displayName,
+  baseName,
+  sets,
+  onUpdated,
+}: {
+  workoutId: string;
+  exerciseId: string;
+  displayName: string;
+  baseName: string;
+  sets: Array<{ id: string; weight: number | string; reps: number | string }>;
+  onUpdated: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(displayName);
+
+  const mut = useMutation({
+    mutationFn: async (newName: string) => {
+      const trimmed = newName.trim();
+      // Si l'utilisateur revient au nom de base, on efface l'override (null)
+      const override = !trimmed || trimmed === baseName ? null : trimmed;
+      const { error } = await supabase
+        .from("workout_sets")
+        .update({ exercise_name_override: override })
+        .eq("workout_id", workoutId)
+        .eq("exercise_id", exerciseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Nom mis à jour");
+      setEditing(false);
+      onUpdated();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="flex min-w-0 items-center gap-2">
+        {editing ? (
+          <>
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") mut.mutate(draft);
+                if (e.key === "Escape") {
+                  setDraft(displayName);
+                  setEditing(false);
+                }
+              }}
+              className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm font-bold focus:border-primary focus:outline-none"
+            />
+            <button
+              onClick={() => mut.mutate(draft)}
+              disabled={mut.isPending}
+              className="rounded-md bg-primary p-1.5 text-primary-foreground disabled:opacity-50"
+              aria-label="Valider"
+            >
+              <Check className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                setDraft(displayName);
+                setEditing(false);
+              }}
+              className="rounded-md border border-border p-1.5 text-muted-foreground"
+              aria-label="Annuler"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <h3 className="min-w-0 flex-1 truncate font-bold">{displayName}</h3>
+            <button
+              onClick={() => {
+                setDraft(displayName);
+                setEditing(true);
+              }}
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-label="Renommer pour cette séance"
+              title="Renommer (uniquement pour cette séance)"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+      <div className="mt-3 space-y-1">
+        {sets.map((s, i) => (
+          <div
+            key={s.id}
+            className="flex items-center justify-between rounded-md bg-secondary/50 px-3 py-2 text-sm"
+          >
+            <span className="text-muted-foreground">Série {i + 1}</span>
+            <span className="font-semibold">
+              {s.weight} kg × {s.reps}
+            </span>
           </div>
         ))}
       </div>
