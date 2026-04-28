@@ -367,3 +367,58 @@ function EmptyCard({ title, desc }: { title: string; desc: string }) {
     </div>
   );
 }
+
+function DraftResumeBanner({
+  draft,
+}: {
+  draft: { id: string; name: string; started_at: string };
+}) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const delMut = useMutation({
+    mutationFn: async () => {
+      await supabase.from("workout_sets").delete().eq("workout_id", draft.id);
+      const { error } = await supabase.from("workouts").delete().eq("id", draft.id);
+      if (error) throw error;
+      clearDraftLocal();
+    },
+    onSuccess: () => {
+      toast.success("Brouillon supprimé");
+      qc.invalidateQueries({ queryKey: ["workouts", "draft"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 p-3 sm:p-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+          Séance non terminée
+        </p>
+        <p className="mt-1 truncate text-sm font-bold">{draft.name}</p>
+        <p className="text-[11px] text-muted-foreground">
+          {formatDistanceToNow(new Date(draft.started_at), { addSuffix: true, locale: fr })}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          onClick={() =>
+            navigate({ to: "/app/workout/new", search: { draftId: draft.id } })
+          }
+          className="inline-flex items-center gap-1.5 rounded-md bg-gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+        >
+          <Play className="h-3.5 w-3.5" /> Reprendre
+        </button>
+        <button
+          onClick={() => {
+            if (confirm("Supprimer ce brouillon ?")) delMut.mutate();
+          }}
+          className="rounded-md border border-border p-2 text-muted-foreground hover:text-destructive"
+          aria-label="Supprimer le brouillon"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
