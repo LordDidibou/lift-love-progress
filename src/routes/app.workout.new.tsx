@@ -687,6 +687,38 @@ function NewWorkoutPage() {
           </button>
         </div>
       </div>
+
+      {showLeaveDialog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 p-4 backdrop-blur">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-card">
+            <h2 className="text-lg font-bold">Séance en cours</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Veux-tu vraiment quitter ? Ta progression est sauvegardée en brouillon
+              et tu pourras la reprendre plus tard.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                onClick={handleStay}
+                className="w-full rounded-md bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
+              >
+                Continuer la séance
+              </button>
+              <button
+                onClick={handleKeepDraft}
+                className="w-full rounded-md border border-border py-2.5 text-sm font-semibold"
+              >
+                Quitter et garder le brouillon
+              </button>
+              <button
+                onClick={handleAbandon}
+                className="w-full rounded-md py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10"
+              >
+                Abandonner la séance
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
