@@ -11,12 +11,7 @@ import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 import { formatCompact } from "@/lib/formatNumber";
-import {
-  saveDraftLocal,
-  clearDraftLocal,
-  readDraftLocal,
-  type DraftPayload,
-} from "@/lib/workoutDraft";
+import { saveDraftLocal, clearDraftLocal } from "@/lib/workoutDraft";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
