@@ -487,12 +487,12 @@ function NewWorkoutPage() {
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3">
-      <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {accent && <Flame className="h-3 w-3 text-accent" />}
-        {label}
+    <div className="min-w-0 rounded-md border border-border bg-card p-3">
+      <p className="flex items-center gap-1 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {accent && <Flame className="h-3 w-3 shrink-0 text-accent" />}
+        <span className="truncate">{label}</span>
       </p>
-      <p className={`mt-1 font-display text-xl font-bold ${accent ? "text-gradient" : ""}`}>{value}</p>
+      <p className={`mt-1 truncate font-display text-xl font-bold ${accent ? "text-gradient" : ""}`}>{value}</p>
     </div>
   );
 }
