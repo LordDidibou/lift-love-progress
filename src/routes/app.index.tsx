@@ -115,6 +115,8 @@ function HomePage() {
         </Link>
       </div>
 
+      {draft ? <DraftResumeBanner draft={draft} /> : null}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard
           icon={Flame}
