@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Plus, Activity, TrendingUp, Calendar, Flame, MoreVertical, Pencil, Trash2, FileEdit } from "lucide-react";
+import { Plus, Activity, TrendingUp, Calendar, Flame, MoreVertical, Pencil, Trash2, FileEdit, Play, X } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
+import { clearDraftLocal } from "@/lib/workoutDraft";
 
 export const Route = createFileRoute("/app/")({
   component: HomePage,
@@ -40,8 +41,26 @@ function HomePage() {
       const { data, error } = await supabase
         .from("workouts")
         .select("id, name, started_at, ended_at")
+        .eq("status", "completed")
         .order("started_at", { ascending: false })
         .limit(8);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Brouillon en cours (séance non terminée)
+  const { data: draft } = useQuery({
+    queryKey: ["workouts", "draft", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("id, name, started_at")
+        .eq("status", "draft")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -57,9 +76,16 @@ function HomePage() {
         supabase
           .from("workouts")
           .select("*", { count: "exact", head: true })
+          .eq("status", "completed")
           .gte("started_at", since.toISOString()),
-        supabase.from("workouts").select("*", { count: "exact", head: true }),
-        supabase.from("workout_sets").select("reps, weight"),
+        supabase
+          .from("workouts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "completed"),
+        supabase
+          .from("workout_sets")
+          .select("reps, weight, workouts!inner(status)")
+          .eq("workouts.status", "completed"),
       ]);
       const totalVolume = (setsAgg ?? []).reduce(
         (acc, s) => acc + Number(s.reps) * Number(s.weight),
@@ -89,6 +115,8 @@ function HomePage() {
           <span className="sm:hidden">Nouvelle</span>
         </Link>
       </div>
+
+      {draft ? <DraftResumeBanner draft={draft} /> : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard
@@ -336,6 +364,61 @@ function EmptyCard({ title, desc }: { title: string; desc: string }) {
     <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-center">
       <p className="font-semibold">{title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
+    </div>
+  );
+}
+
+function DraftResumeBanner({
+  draft,
+}: {
+  draft: { id: string; name: string; started_at: string };
+}) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const delMut = useMutation({
+    mutationFn: async () => {
+      await supabase.from("workout_sets").delete().eq("workout_id", draft.id);
+      const { error } = await supabase.from("workouts").delete().eq("id", draft.id);
+      if (error) throw error;
+      clearDraftLocal();
+    },
+    onSuccess: () => {
+      toast.success("Brouillon supprimé");
+      qc.invalidateQueries({ queryKey: ["workouts", "draft"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 p-3 sm:p-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+          Séance non terminée
+        </p>
+        <p className="mt-1 truncate text-sm font-bold">{draft.name}</p>
+        <p className="text-[11px] text-muted-foreground">
+          {formatDistanceToNow(new Date(draft.started_at), { addSuffix: true, locale: fr })}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          onClick={() =>
+            navigate({ to: "/app/workout/new", search: { draftId: draft.id } })
+          }
+          className="inline-flex items-center gap-1.5 rounded-md bg-gradient-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+        >
+          <Play className="h-3.5 w-3.5" /> Reprendre
+        </button>
+        <button
+          onClick={() => {
+            if (confirm("Supprimer ce brouillon ?")) delMut.mutate();
+          }}
+          className="rounded-md border border-border p-2 text-muted-foreground hover:text-destructive"
+          aria-label="Supprimer le brouillon"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

@@ -210,6 +210,7 @@ export type Database = {
         Row: {
           created_at: string
           exercise_id: string
+          exercise_name_override: string | null
           id: string
           is_warmup: boolean
           reps: number
@@ -221,6 +222,7 @@ export type Database = {
         Insert: {
           created_at?: string
           exercise_id: string
+          exercise_name_override?: string | null
           id?: string
           is_warmup?: boolean
           reps?: number
@@ -232,6 +234,7 @@ export type Database = {
         Update: {
           created_at?: string
           exercise_id?: string
+          exercise_name_override?: string | null
           id?: string
           is_warmup?: boolean
           reps?: number
@@ -266,6 +269,7 @@ export type Database = {
           notes: string | null
           routine_id: string | null
           started_at: string
+          status: string
           user_id: string
         }
         Insert: {
@@ -276,6 +280,7 @@ export type Database = {
           notes?: string | null
           routine_id?: string | null
           started_at?: string
+          status?: string
           user_id: string
         }
         Update: {
@@ -286,6 +291,7 @@ export type Database = {
           notes?: string | null
           routine_id?: string | null
           started_at?: string
+          status?: string
           user_id?: string
         }
         Relationships: [

@@ -48,6 +48,7 @@ function HistoryPage() {
       const { data, error } = await supabase
         .from("workouts")
         .select("id, name, routine_id, started_at, ended_at, workout_sets(reps, weight)")
+        .eq("status", "completed")
         .order("started_at", { ascending: false })
         .limit(1000);
       if (error) throw error;

@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X, Search, Check, Trash2, Flame, Calendar, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -11,10 +11,12 @@ import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 import { formatCompact } from "@/lib/formatNumber";
+import { saveDraftLocal, clearDraftLocal } from "@/lib/workoutDraft";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
   workoutId: z.string().optional(),
+  draftId: z.string().optional(),
 });
 
 export const Route = createFileRoute("/app/workout/new")({
@@ -30,7 +32,7 @@ function uid() {
 }
 
 function NewWorkoutPage() {
-  const { routineId, workoutId } = Route.useSearch();
+  const { routineId, workoutId, draftId } = Route.useSearch();
   const isEdit = !!workoutId;
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -42,6 +44,9 @@ function NewWorkoutPage() {
   const [picker, setPicker] = useState(false);
   const [startedAt, setStartedAt] = useState<Date>(() => new Date());
   const [hydrated, setHydrated] = useState(false);
+  // ID Supabase du brouillon (workouts.status='draft'), créé à la 1re modif.
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId ?? null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Auto-nom : "Premier exo – dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
   useEffect(() => {
@@ -142,11 +147,141 @@ function NewWorkoutPage() {
     }
   }, [routine, items.length, isEdit]);
 
+  // ───── Hydratation depuis un brouillon Supabase (draftId) ─────
+  const { data: draftRow } = useQuery({
+    queryKey: ["workout-draft", draftId],
+    enabled: !!draftId && !isEdit,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("*, workout_sets(*, exercises(name))")
+        .eq("id", draftId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (!draftRow || hydrated) return;
+    setName(stripTrailingDate(draftRow.name));
+    setNameTouched(true);
+    setStartedAt(new Date(draftRow.started_at));
+    setCurrentDraftId(draftRow.id);
+    const grouped = new Map<string, LocalEx>();
+    [...draftRow.workout_sets]
+      .sort((a, b) => a.set_number - b.set_number)
+      .forEach((s) => {
+        if (!grouped.has(s.exercise_id)) {
+          grouped.set(s.exercise_id, {
+            exercise_id: s.exercise_id,
+            name: s.exercises?.name ?? "—",
+            sets: [],
+          });
+        }
+        grouped.get(s.exercise_id)!.sets.push({
+          id: s.id,
+          reps: Number(s.reps),
+          weight: Number(s.weight),
+          done: false, // brouillon → on laisse l'utilisateur revalider
+        });
+      });
+    setItems(Array.from(grouped.values()));
+    setHydrated(true);
+  }, [draftRow, hydrated]);
+
+
   // Dernières perfs pour placeholder
   const exerciseIds = useMemo(() => items.map((i) => i.exercise_id), [items]);
   const { data: lastPerfs } = useLastPerf(exerciseIds);
   const byExercise = lastPerfs?.byExercise ?? {};
   const bySet = lastPerfs?.bySet ?? {};
+
+  // ───── Auto-save brouillon (Supabase + localStorage) ─────
+  // Désactivé en mode édition (workoutId déjà existant et completed).
+  const isDraftMode = !isEdit;
+  const finishedRef = useRef(false);
+  const saveDraft = useCallback(async () => {
+    if (!user || !isDraftMode || finishedRef.current) return;
+    if (items.length === 0) return; // rien à sauvegarder
+
+    const finalName = withDateSuffix(stripTrailingDate(name) || "Séance", startedAt);
+    let wId = currentDraftId;
+    if (!wId) {
+      const { data: w, error } = await supabase
+        .from("workouts")
+        .insert({
+          user_id: user.id,
+          routine_id: routineId ?? null,
+          name: finalName,
+          started_at: startedAt.toISOString(),
+          status: "draft",
+        })
+        .select("id")
+        .single();
+      if (error) {
+        console.error("draft insert", error);
+        return;
+      }
+      wId = w.id;
+      setCurrentDraftId(wId);
+    } else {
+      await supabase
+        .from("workouts")
+        .update({ name: finalName, started_at: startedAt.toISOString(), status: "draft" })
+        .eq("id", wId);
+    }
+
+    // remplace les sets
+    await supabase.from("workout_sets").delete().eq("workout_id", wId);
+    const rows: {
+      workout_id: string;
+      exercise_id: string;
+      set_number: number;
+      reps: number;
+      weight: number;
+    }[] = [];
+    items.forEach((ex) => {
+      ex.sets.forEach((s, idx) => {
+        rows.push({
+          workout_id: wId!,
+          exercise_id: ex.exercise_id,
+          set_number: idx + 1,
+          reps: s.reps,
+          weight: s.weight,
+        });
+      });
+    });
+    if (rows.length > 0) {
+      await supabase.from("workout_sets").insert(rows);
+    }
+
+    saveDraftLocal({
+      workoutId: wId,
+      userId: user.id,
+      name,
+      startedAt: startedAt.toISOString(),
+      routineId: routineId ?? null,
+      items,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [user, isDraftMode, items, name, startedAt, currentDraftId, routineId]);
+
+  // débounce 1.5s sur changement + interval 30s
+  useEffect(() => {
+    if (!isDraftMode) return;
+    const t = setTimeout(() => {
+      saveDraft();
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [items, name, startedAt, isDraftMode, saveDraft]);
+
+  useEffect(() => {
+    if (!isDraftMode) return;
+    const id = setInterval(() => saveDraft(), 30_000);
+    return () => clearInterval(id);
+  }, [isDraftMode, saveDraft]);
+
 
   const totalDoneSets = useMemo(
     () => items.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0),
@@ -184,6 +319,7 @@ function NewWorkoutPage() {
           .update({
             name: finalName,
             started_at: startedAt.toISOString(),
+            status: "completed",
           })
           .eq("id", workoutId);
         if (upErr) throw upErr;
@@ -194,6 +330,20 @@ function NewWorkoutPage() {
           .eq("workout_id", workoutId);
         if (delErr) throw delErr;
         wId = workoutId;
+      } else if (currentDraftId) {
+        // Promotion du brouillon en séance terminée
+        const { error: upErr } = await supabase
+          .from("workouts")
+          .update({
+            name: finalName,
+            started_at: startedAt.toISOString(),
+            ended_at: new Date().toISOString(),
+            status: "completed",
+          })
+          .eq("id", currentDraftId);
+        if (upErr) throw upErr;
+        await supabase.from("workout_sets").delete().eq("workout_id", currentDraftId);
+        wId = currentDraftId;
       } else {
         const { data: w, error } = await supabase
           .from("workouts")
@@ -203,6 +353,7 @@ function NewWorkoutPage() {
             name: finalName,
             started_at: startedAt.toISOString(),
             ended_at: new Date().toISOString(),
+            status: "completed",
           })
           .select()
           .single();
@@ -237,6 +388,8 @@ function NewWorkoutPage() {
       return wId;
     },
     onSuccess: () => {
+      finishedRef.current = true;
+      clearDraftLocal();
       toast.success(isEdit ? "Séance mise à jour" : "Séance enregistrée 💪");
       qc.invalidateQueries({ queryKey: ["workouts"] });
       qc.invalidateQueries({ queryKey: ["workout"] });
@@ -246,6 +399,50 @@ function NewWorkoutPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
+
+  // Garde de navigation : si brouillon non vide non terminé, on demande confirmation
+  const dirty = isDraftMode && items.length > 0 && !finishedRef.current;
+  const { proceed, reset, status } = useBlocker({
+    shouldBlockFn: () => dirty,
+    withResolver: true,
+  });
+  useEffect(() => {
+    if (status === "blocked") setShowLeaveDialog(true);
+  }, [status]);
+
+  const handleAbandon = useCallback(async () => {
+    if (currentDraftId) {
+      await supabase.from("workout_sets").delete().eq("workout_id", currentDraftId);
+      await supabase.from("workouts").delete().eq("id", currentDraftId);
+    }
+    clearDraftLocal();
+    finishedRef.current = true;
+    setShowLeaveDialog(false);
+    proceed?.();
+  }, [currentDraftId, proceed]);
+
+  const handleKeepDraft = useCallback(async () => {
+    await saveDraft();
+    setShowLeaveDialog(false);
+    proceed?.();
+  }, [proceed, saveDraft]);
+
+  const handleStay = useCallback(() => {
+    setShowLeaveDialog(false);
+    reset?.();
+  }, [reset]);
+
+  // Avertissement avant fermeture d'onglet
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
 
   const dateInputValue = format(startedAt, "yyyy-MM-dd");
 
@@ -485,6 +682,38 @@ function NewWorkoutPage() {
           </button>
         </div>
       </div>
+
+      {showLeaveDialog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 p-4 backdrop-blur">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-card">
+            <h2 className="text-lg font-bold">Séance en cours</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Veux-tu vraiment quitter ? Ta progression est sauvegardée en brouillon
+              et tu pourras la reprendre plus tard.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                onClick={handleStay}
+                className="w-full rounded-md bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
+              >
+                Continuer la séance
+              </button>
+              <button
+                onClick={handleKeepDraft}
+                className="w-full rounded-md border border-border py-2.5 text-sm font-semibold"
+              >
+                Quitter et garder le brouillon
+              </button>
+              <button
+                onClick={handleAbandon}
+                className="w-full rounded-md py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10"
+              >
+                Abandonner la séance
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
