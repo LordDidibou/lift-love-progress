@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
+import { formatCompact } from "@/lib/formatNumber";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
