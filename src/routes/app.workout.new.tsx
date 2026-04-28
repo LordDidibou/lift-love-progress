@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X, Search, Check, Trash2, Flame, Calendar, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -11,6 +11,12 @@ import { DecimalInput } from "@/components/DecimalInput";
 import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 import { formatCompact } from "@/lib/formatNumber";
+import {
+  saveDraftLocal,
+  clearDraftLocal,
+  readDraftLocal,
+  type DraftPayload,
+} from "@/lib/workoutDraft";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
