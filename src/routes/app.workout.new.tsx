@@ -152,6 +152,50 @@ function NewWorkoutPage() {
     }
   }, [routine, items.length, isEdit]);
 
+  // ───── Hydratation depuis un brouillon Supabase (draftId) ─────
+  const { data: draftRow } = useQuery({
+    queryKey: ["workout-draft", draftId],
+    enabled: !!draftId && !isEdit,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("*, workout_sets(*, exercises(name))")
+        .eq("id", draftId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (!draftRow || hydrated) return;
+    setName(stripTrailingDate(draftRow.name));
+    setNameTouched(true);
+    setStartedAt(new Date(draftRow.started_at));
+    setCurrentDraftId(draftRow.id);
+    const grouped = new Map<string, LocalEx>();
+    [...draftRow.workout_sets]
+      .sort((a, b) => a.set_number - b.set_number)
+      .forEach((s) => {
+        if (!grouped.has(s.exercise_id)) {
+          grouped.set(s.exercise_id, {
+            exercise_id: s.exercise_id,
+            name: s.exercises?.name ?? "—",
+            sets: [],
+          });
+        }
+        grouped.get(s.exercise_id)!.sets.push({
+          id: s.id,
+          reps: Number(s.reps),
+          weight: Number(s.weight),
+          done: false, // brouillon → on laisse l'utilisateur revalider
+        });
+      });
+    setItems(Array.from(grouped.values()));
+    setHydrated(true);
+  }, [draftRow, hydrated]);
+
+
   // Dernières perfs pour placeholder
   const exerciseIds = useMemo(() => items.map((i) => i.exercise_id), [items]);
   const { data: lastPerfs } = useLastPerf(exerciseIds);
