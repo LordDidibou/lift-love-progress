@@ -339,7 +339,8 @@ function NewWorkoutPage() {
                   const prev = setsPrev[sIdx + 1];
                   // Placeholder seulement si valeur 0 ET pas encore validé
                   const showWeightPh = !set.done && set.weight === 0 && prev !== undefined;
-                  const showRepsPh = !set.done && set.reps === 0 && prev !== undefined;
+                  const repsPh = prev?.reps ?? set.targetReps;
+                  const showRepsPh = !set.done && set.reps === 0 && repsPh !== undefined && repsPh > 0;
                   return (
                     <div
                       key={set.id}
