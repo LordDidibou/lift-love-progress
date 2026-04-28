@@ -75,9 +75,16 @@ function HomePage() {
         supabase
           .from("workouts")
           .select("*", { count: "exact", head: true })
+          .eq("status", "completed")
           .gte("started_at", since.toISOString()),
-        supabase.from("workouts").select("*", { count: "exact", head: true }),
-        supabase.from("workout_sets").select("reps, weight"),
+        supabase
+          .from("workouts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "completed"),
+        supabase
+          .from("workout_sets")
+          .select("reps, weight, workouts!inner(status)")
+          .eq("workouts.status", "completed"),
       ]);
       const totalVolume = (setsAgg ?? []).reduce(
         (acc, s) => acc + Number(s.reps) * Number(s.weight),
