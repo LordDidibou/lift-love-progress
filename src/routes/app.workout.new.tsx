@@ -202,6 +202,92 @@ function NewWorkoutPage() {
   const byExercise = lastPerfs?.byExercise ?? {};
   const bySet = lastPerfs?.bySet ?? {};
 
+  // ───── Auto-save brouillon (Supabase + localStorage) ─────
+  // Désactivé en mode édition (workoutId déjà existant et completed).
+  const isDraftMode = !isEdit;
+  const finishedRef = useRef(false);
+  const saveDraft = useCallback(async () => {
+    if (!user || !isDraftMode || finishedRef.current) return;
+    if (items.length === 0) return; // rien à sauvegarder
+
+    const finalName = withDateSuffix(stripTrailingDate(name) || "Séance", startedAt);
+    let wId = currentDraftId;
+    if (!wId) {
+      const { data: w, error } = await supabase
+        .from("workouts")
+        .insert({
+          user_id: user.id,
+          routine_id: routineId ?? null,
+          name: finalName,
+          started_at: startedAt.toISOString(),
+          status: "draft",
+        })
+        .select("id")
+        .single();
+      if (error) {
+        console.error("draft insert", error);
+        return;
+      }
+      wId = w.id;
+      setCurrentDraftId(wId);
+    } else {
+      await supabase
+        .from("workouts")
+        .update({ name: finalName, started_at: startedAt.toISOString(), status: "draft" })
+        .eq("id", wId);
+    }
+
+    // remplace les sets
+    await supabase.from("workout_sets").delete().eq("workout_id", wId);
+    const rows: {
+      workout_id: string;
+      exercise_id: string;
+      set_number: number;
+      reps: number;
+      weight: number;
+    }[] = [];
+    items.forEach((ex) => {
+      ex.sets.forEach((s, idx) => {
+        rows.push({
+          workout_id: wId!,
+          exercise_id: ex.exercise_id,
+          set_number: idx + 1,
+          reps: s.reps,
+          weight: s.weight,
+        });
+      });
+    });
+    if (rows.length > 0) {
+      await supabase.from("workout_sets").insert(rows);
+    }
+
+    saveDraftLocal({
+      workoutId: wId,
+      userId: user.id,
+      name,
+      startedAt: startedAt.toISOString(),
+      routineId: routineId ?? null,
+      items,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [user, isDraftMode, items, name, startedAt, currentDraftId, routineId]);
+
+  // débounce 1.5s sur changement + interval 30s
+  useEffect(() => {
+    if (!isDraftMode) return;
+    const t = setTimeout(() => {
+      saveDraft();
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [items, name, startedAt, isDraftMode, saveDraft]);
+
+  useEffect(() => {
+    if (!isDraftMode) return;
+    const id = setInterval(() => saveDraft(), 30_000);
+    return () => clearInterval(id);
+  }, [isDraftMode, saveDraft]);
+
+
   const totalDoneSets = useMemo(
     () => items.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0),
     [items],
