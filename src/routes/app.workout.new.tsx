@@ -140,7 +140,9 @@ function NewWorkoutPage() {
 
   // Dernières perfs pour placeholder
   const exerciseIds = useMemo(() => items.map((i) => i.exercise_id), [items]);
-  const { data: lastPerfs = {} } = useLastPerf(exerciseIds);
+  const { data: lastPerfs } = useLastPerf(exerciseIds);
+  const byExercise = lastPerfs?.byExercise ?? {};
+  const bySet = lastPerfs?.bySet ?? {};
 
   const totalDoneSets = useMemo(
     () => items.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0),
