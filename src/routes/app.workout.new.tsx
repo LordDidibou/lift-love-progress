@@ -37,7 +37,7 @@ function uid() {
 }
 
 function NewWorkoutPage() {
-  const { routineId, workoutId } = Route.useSearch();
+  const { routineId, workoutId, draftId } = Route.useSearch();
   const isEdit = !!workoutId;
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -49,6 +49,9 @@ function NewWorkoutPage() {
   const [picker, setPicker] = useState(false);
   const [startedAt, setStartedAt] = useState<Date>(() => new Date());
   const [hydrated, setHydrated] = useState(false);
+  // ID Supabase du brouillon (workouts.status='draft'), créé à la 1re modif.
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId ?? null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Auto-nom : "Premier exo – dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
   useEffect(() => {
