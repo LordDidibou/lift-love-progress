@@ -127,9 +127,12 @@ function NewWorkoutPage() {
           return {
             exercise_id: re.exercise_id,
             name: re.exercises?.name ?? "—",
+            // reps initialisé à 0 pour laisser apparaître le placeholder éphémère
+            // (dernière perf, sinon target reps de la routine).
             sets: repsArr.map((reps) => ({
               id: uid(),
-              reps,
+              reps: 0,
+              targetReps: reps,
               weight: 0,
               done: false,
             })),
