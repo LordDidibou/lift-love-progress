@@ -22,7 +22,7 @@ export const Route = createFileRoute("/app/workout/new")({
   component: NewWorkoutPage,
 });
 
-type LocalSet = { id: string; reps: number; weight: number; done: boolean };
+type LocalSet = { id: string; reps: number; weight: number; done: boolean; targetReps?: number };
 type LocalEx = { exercise_id: string; name: string; sets: LocalSet[] };
 
 function uid() {
