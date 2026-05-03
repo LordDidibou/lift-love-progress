@@ -253,6 +253,9 @@ function ProfilePage() {
         </div>
       </section>
 
+      <SubscriptionCard />
+
+
       <section className="rounded-xl border border-border bg-card p-5 shadow-card">
         <div className="mb-4 flex items-center gap-2">
           <Scale className="h-5 w-5 text-primary" />
