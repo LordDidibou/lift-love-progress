@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DecimalInput } from "@/components/DecimalInput";
+import { SubscriptionCard } from "@/components/SubscriptionCard";
 
 export const Route = createFileRoute("/app/profile")({
   component: ProfilePage,
@@ -251,6 +252,9 @@ function ProfilePage() {
           </button>
         </div>
       </section>
+
+      <SubscriptionCard />
+
 
       <section className="rounded-xl border border-border bg-card p-5 shadow-card">
         <div className="mb-4 flex items-center gap-2">
