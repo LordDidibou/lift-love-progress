@@ -295,6 +295,22 @@ function StatsPage() {
             </div>
           )}
 
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {MUSCLE_GROUPS.map((g) => (
+              <button
+                key={g}
+                onClick={() => setMuscleFilter(g)}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  muscleFilter === g
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+
           <div ref={searchRef} className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
