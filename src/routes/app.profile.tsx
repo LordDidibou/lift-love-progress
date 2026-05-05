@@ -230,7 +230,7 @@ function ProfilePage() {
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Photo de profil</p>
-            <p className="text-xs text-muted-foreground">Clique pour {profile?.avatar_url ? "changer" : "ajouter"} (max 5 Mo)</p>
+            <p className="text-xs text-muted-foreground">Clique pour {profile?.avatar_url ? "changer" : "ajouter"} (JPG, PNG, WEBP, HEIC — max 15 Mo)</p>
             <input
               ref={fileInputRef}
               type="file"
