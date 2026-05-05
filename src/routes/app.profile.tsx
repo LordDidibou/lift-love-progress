@@ -55,17 +55,32 @@ function ProfilePage() {
 
   const uploadAvatar = async (file: File) => {
     if (!user) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image trop lourde (max 5 Mo)");
+    if (!isAcceptedImage(file)) {
+      toast.error("Format non supporté (JPG, PNG, WEBP, HEIC)");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("Image trop lourde (max 15 Mo)");
       return;
     }
     setAvatarUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      let toUpload: File;
+      try {
+        toUpload = await compressImageToSquare(file, 400, 0.85);
+      } catch {
+        // HEIC ou format non décodable par le navigateur
+        toast.error("Impossible de lire cette image. Convertis-la en JPG ou PNG.");
+        setAvatarUploading(false);
+        return;
+      }
+      if (toUpload.size > 2 * 1024 * 1024) {
+        toUpload = await compressImageToSquare(file, 400, 0.7);
+      }
+      const path = `${user.id}/avatar-${Date.now()}.jpg`;
       const { error: upErr } = await supabase.storage
         .from("avatars")
-        .upload(path, file, { upsert: true, cacheControl: "3600" });
+        .upload(path, toUpload, { upsert: true, cacheControl: "3600", contentType: "image/jpeg" });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
       const { error: updErr } = await supabase
@@ -76,7 +91,7 @@ function ProfilePage() {
       toast.success("Photo mise à jour");
       qc.invalidateQueries({ queryKey: ["profile"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur upload");
+      toast.error(e instanceof Error ? e.message : "Échec de l'upload, réessaie");
     } finally {
       setAvatarUploading(false);
     }
