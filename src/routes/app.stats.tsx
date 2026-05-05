@@ -44,10 +44,23 @@ const SERIES_COLORS = [
 
 const MAX_EXERCISES = 5;
 
+const MUSCLE_GROUPS = [
+  "Tous",
+  "Pectoraux",
+  "Dos",
+  "Épaules",
+  "Biceps",
+  "Triceps",
+  "Jambes",
+  "Abdominaux",
+  "Lombaires",
+];
+
 function StatsPage() {
   const { user } = useAuth();
   const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [exerciseQuery, setExerciseQuery] = useState("");
+  const [muscleFilter, setMuscleFilter] = useState<string>("Tous");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [rangeDays, setRangeDays] = useState<number>(14);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -160,12 +173,15 @@ function StatsPage() {
   // Suggestions d'exercices (en excluant ceux déjà choisis)
   const suggestions = useMemo(() => {
     const q = exerciseQuery.toLowerCase().trim();
-    const base = exercises.filter((e) => !exerciseIds.includes(e.id));
-    if (!q) return base.slice(0, 8);
+    let base = exercises.filter((e) => !exerciseIds.includes(e.id));
+    if (muscleFilter !== "Tous") {
+      base = base.filter((e) => e.muscle_group === muscleFilter);
+    }
+    if (!q) return base.slice(0, 12);
     return base
       .filter((e) => e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q))
-      .slice(0, 10);
-  }, [exercises, exerciseQuery, exerciseIds]);
+      .slice(0, 15);
+  }, [exercises, exerciseQuery, exerciseIds, muscleFilter]);
 
   // Fermer suggestions au clic extérieur
   useEffect(() => {
@@ -278,6 +294,22 @@ function StatsPage() {
               ))}
             </div>
           )}
+
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {MUSCLE_GROUPS.map((g) => (
+              <button
+                key={g}
+                onClick={() => setMuscleFilter(g)}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  muscleFilter === g
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
 
           <div ref={searchRef} className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
