@@ -44,10 +44,23 @@ const SERIES_COLORS = [
 
 const MAX_EXERCISES = 5;
 
+const MUSCLE_GROUPS = [
+  "Tous",
+  "Pectoraux",
+  "Dos",
+  "Épaules",
+  "Biceps",
+  "Triceps",
+  "Jambes",
+  "Abdominaux",
+  "Lombaires",
+];
+
 function StatsPage() {
   const { user } = useAuth();
   const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [exerciseQuery, setExerciseQuery] = useState("");
+  const [muscleFilter, setMuscleFilter] = useState<string>("Tous");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [rangeDays, setRangeDays] = useState<number>(14);
   const searchRef = useRef<HTMLDivElement>(null);
