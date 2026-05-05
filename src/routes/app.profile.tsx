@@ -234,7 +234,7 @@ function ProfilePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
