@@ -173,12 +173,15 @@ function StatsPage() {
   // Suggestions d'exercices (en excluant ceux déjà choisis)
   const suggestions = useMemo(() => {
     const q = exerciseQuery.toLowerCase().trim();
-    const base = exercises.filter((e) => !exerciseIds.includes(e.id));
-    if (!q) return base.slice(0, 8);
+    let base = exercises.filter((e) => !exerciseIds.includes(e.id));
+    if (muscleFilter !== "Tous") {
+      base = base.filter((e) => e.muscle_group === muscleFilter);
+    }
+    if (!q) return base.slice(0, 12);
     return base
       .filter((e) => e.name.toLowerCase().includes(q) || e.muscle_group.toLowerCase().includes(q))
-      .slice(0, 10);
-  }, [exercises, exerciseQuery, exerciseIds]);
+      .slice(0, 15);
+  }, [exercises, exerciseQuery, exerciseIds, muscleFilter]);
 
   // Fermer suggestions au clic extérieur
   useEffect(() => {
