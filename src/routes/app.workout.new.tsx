@@ -12,6 +12,8 @@ import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 import { formatCompact } from "@/lib/formatNumber";
 import { saveDraftLocal, clearDraftLocal } from "@/lib/workoutDraft";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MessageSquare } from "lucide-react";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
