@@ -206,9 +206,11 @@ function HistoryRow({ workout }: { workout: EnrichedWorkout }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
+  const [confirmDel, setConfirmDel] = useState(false);
+
   return (
     <>
-      <div className="relative flex items-stretch gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40">
+      <div className="relative flex w-full min-w-0 items-stretch gap-1 rounded-lg border border-border bg-card pl-3 pr-1 py-3 transition-colors hover:border-primary/40">
         <button
           onClick={() =>
             navigate({ to: "/app/workout/$workoutId", params: { workoutId: workout.id } })
