@@ -36,6 +36,22 @@ function WorkoutDetailPage() {
     },
   });
 
+  const { data: notes = {} } = useQuery({
+    queryKey: ["workout-notes", workoutId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workout_exercise_notes")
+        .select("exercise_id, note")
+        .eq("workout_id", workoutId);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((r) => {
+        map[r.exercise_id as string] = (r.note as string) ?? "";
+      });
+      return map;
+    },
+  });
+
   if (isLoading) return <div className="text-sm text-muted-foreground">Chargement…</div>;
   if (!data) return <div>Introuvable</div>;
 
