@@ -769,8 +769,7 @@ function NewWorkoutPage() {
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-card">
             <h2 className="text-lg font-bold">Séance en cours</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Veux-tu vraiment quitter ? Ta progression est sauvegardée en brouillon
-              et tu pourras la reprendre plus tard.
+              Que veux-tu faire ?
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <button
@@ -780,20 +779,67 @@ function NewWorkoutPage() {
                 Continuer la séance
               </button>
               <button
-                onClick={handleKeepDraft}
-                className="w-full rounded-md border border-border py-2.5 text-sm font-semibold"
+                onClick={() => {
+                  if (!hasFilledSet) {
+                    toast.error(
+                      "Aucune série enregistrée — ajoute au moins une série avec un poids et des répétitions avant de mettre en brouillon.",
+                    );
+                    return;
+                  }
+                  handleKeepDraft();
+                }}
+                className="w-full rounded-md border border-border py-2.5 text-sm font-semibold hover:bg-secondary"
               >
-                Quitter et garder le brouillon
+                Mettre en brouillon
               </button>
               <button
-                onClick={handleAbandon}
+                onClick={() => {
+                  setShowLeaveDialog(false);
+                  setShowAbandonConfirm(true);
+                }}
                 className="w-full rounded-md py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10"
               >
-                Abandonner la séance
+                Abandonner
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {showAbandonConfirm && (
+        <ConfirmDialog
+          title="Es-tu sûr ?"
+          message="Cette action est irréversible. Tous les exercices et séries de cette séance seront supprimés."
+          confirmLabel="Abandonner"
+          cancelLabel="Retour"
+          destructive
+          onConfirm={() => {
+            setShowAbandonConfirm(false);
+            handleAbandon();
+          }}
+          onCancel={() => {
+            setShowAbandonConfirm(false);
+            setShowLeaveDialog(true);
+          }}
+        />
+      )}
+
+      {showFinishDialog && (
+        <ConfirmDialog
+          title={isEdit ? "Enregistrer les modifications ?" : "Terminer la séance ?"}
+          message={
+            isEdit
+              ? "Les modifications seront enregistrées."
+              : "La séance sera enregistrée dans ton historique."
+          }
+          confirmLabel={isEdit ? "Enregistrer" : "Terminer et enregistrer"}
+          cancelLabel="Annuler"
+          onConfirm={() => {
+            setShowFinishDialog(false);
+            finishMut.mutate();
+          }}
+          onCancel={() => setShowFinishDialog(false)}
+        />
       )}
     </div>
   );
