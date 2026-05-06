@@ -203,6 +203,29 @@ function NewWorkoutPage() {
   const byExercise = lastPerfs?.byExercise ?? {};
   const bySet = lastPerfs?.bySet ?? {};
 
+  // ───── Auto-validation : toute série avec poids>0 ET reps>0 est marquée done.
+  useEffect(() => {
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((ex) => ({
+        ...ex,
+        sets: ex.sets.map((s) => {
+          if (!s.done && s.weight > 0 && s.reps > 0) {
+            changed = true;
+            return { ...s, done: true };
+          }
+          return s;
+        }),
+      }));
+      return changed ? next : prev;
+    });
+  }, [items]);
+
+  const hasFilledSet = useMemo(
+    () => items.some((e) => e.sets.some((s) => s.weight > 0 && s.reps > 0)),
+    [items],
+  );
+
   // ───── Auto-save brouillon (Supabase + localStorage) ─────
   // Désactivé en mode édition (workoutId déjà existant et completed).
   const isDraftMode = !isEdit;
