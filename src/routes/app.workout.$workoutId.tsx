@@ -121,6 +121,7 @@ function WorkoutDetailPage() {
             displayName={g.displayName}
             baseName={g.baseName}
             sets={g.sets}
+            note={notes[exerciseId] ?? ""}
             onUpdated={() => {
               qc.invalidateQueries({ queryKey: ["workout", workoutId] });
               qc.invalidateQueries({ queryKey: ["exercises"] });
