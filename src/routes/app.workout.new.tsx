@@ -331,6 +331,7 @@ function NewWorkoutPage() {
     if (rows.length > 0) {
       await supabase.from("workout_sets").insert(rows);
     }
+    await persistNotes(wId);
 
     saveDraftLocal({
       workoutId: wId,
