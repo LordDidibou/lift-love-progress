@@ -49,6 +49,10 @@ function NewWorkoutPage() {
   // ID Supabase du brouillon (workouts.status='draft'), créé à la 1re modif.
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId ?? null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [openNoteFor, setOpenNoteFor] = useState<string | null>(null);
 
   // Auto-nom : "Premier exo – dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
   useEffect(() => {
