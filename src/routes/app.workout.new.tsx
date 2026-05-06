@@ -713,6 +713,42 @@ function NewWorkoutPage() {
               >
                 <Plus className="h-3.5 w-3.5" /> Ajouter une série
               </button>
+
+              {/* Note de l'exercice */}
+              {openNoteFor === ex.exercise_id ? (
+                <div className="mt-2">
+                  <textarea
+                    autoFocus
+                    maxLength={200}
+                    placeholder="Note sur cet exercice…"
+                    value={notes[ex.exercise_id] ?? ""}
+                    onChange={(e) =>
+                      setNotes((n) => ({ ...n, [ex.exercise_id]: e.target.value.slice(0, 200) }))
+                    }
+                    onBlur={() => setOpenNoteFor(null)}
+                    className="w-full min-w-0 resize-none rounded-md border border-input bg-background px-2 py-2 text-xs focus:border-primary focus:outline-none"
+                    rows={2}
+                  />
+                  <p className="mt-1 text-right text-[10px] text-muted-foreground">
+                    {(notes[ex.exercise_id] ?? "").length}/200
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setOpenNoteFor(ex.exercise_id)}
+                  className={`mt-2 flex items-center gap-1 text-[11px] font-semibold ${
+                    notes[ex.exercise_id]?.trim()
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {notes[ex.exercise_id]?.trim()
+                    ? notes[ex.exercise_id]
+                    : "Ajouter une note"}
+                </button>
+              )}
             </div>
           );
         })}
