@@ -250,25 +250,16 @@ function NewWorkoutPage() {
 
   const persistNotes = useCallback(
     async (wId: string) => {
+      // Stratégie simple : delete all puis re-insert des non-vides.
+      await supabase.from("workout_exercise_notes").delete().eq("workout_id", wId);
       const entries = Object.entries(notes).filter(([, v]) => v.trim().length > 0);
-      // Supprime celles qui ne sont plus présentes / vidées
-      await supabase
-        .from("workout_exercise_notes")
-        .delete()
-        .eq("workout_id", wId)
-        .not(
-          "exercise_id",
-          "in",
-          `(${entries.map(([id]) => `"${id}"`).join(",") || '"00000000-0000-0000-0000-000000000000"'})`,
-        );
       if (entries.length === 0) return;
-      await supabase.from("workout_exercise_notes").upsert(
+      await supabase.from("workout_exercise_notes").insert(
         entries.map(([exercise_id, note]) => ({
           workout_id: wId,
           exercise_id,
           note: note.slice(0, 200),
         })),
-        { onConflict: "workout_id,exercise_id" },
       );
     },
     [notes],
