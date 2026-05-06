@@ -342,7 +342,7 @@ function NewWorkoutPage() {
       items,
       updatedAt: new Date().toISOString(),
     });
-  }, [user, isDraftMode, items, name, startedAt, currentDraftId, routineId]);
+  }, [user, isDraftMode, items, name, startedAt, currentDraftId, routineId, persistNotes]);
 
   // débounce 1.5s sur changement + interval 30s
   useEffect(() => {
