@@ -139,6 +139,7 @@ function ExerciseBlock({
   displayName,
   baseName,
   sets,
+  note,
   onUpdated,
 }: {
   workoutId: string;
@@ -146,6 +147,7 @@ function ExerciseBlock({
   displayName: string;
   baseName: string;
   sets: Array<{ id: string; weight: number | string; reps: number | string }>;
+  note: string;
   onUpdated: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -163,6 +165,12 @@ function ExerciseBlock({
           <Pencil className="h-3.5 w-3.5" />
         </button>
       </div>
+      {note?.trim() && (
+        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-border/50 bg-secondary/40 p-2 text-xs text-muted-foreground">
+          <span aria-hidden>💬</span>
+          <span className="min-w-0 break-words">{note}</span>
+        </p>
+      )}
       <div className="mt-3 space-y-1">
         {sets.map((s, i) => (
           <div
