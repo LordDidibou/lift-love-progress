@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { formatCompact } from "@/lib/formatNumber";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/app/history")({
   component: HistoryPage,
@@ -206,9 +207,11 @@ function HistoryRow({ workout }: { workout: EnrichedWorkout }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
+  const [confirmDel, setConfirmDel] = useState(false);
+
   return (
     <>
-      <div className="relative flex items-stretch gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40">
+      <div className="relative flex w-full min-w-0 items-stretch gap-1 rounded-lg border border-border bg-card pl-3 pr-1 py-3 transition-colors hover:border-primary/40">
         <button
           onClick={() =>
             navigate({ to: "/app/workout/$workoutId", params: { workoutId: workout.id } })
@@ -249,16 +252,16 @@ function HistoryRow({ workout }: { workout: EnrichedWorkout }) {
             {formatDistanceToNow(new Date(workout.started_at), { addSuffix: true, locale: fr })}
           </p>
         </button>
-        <div ref={menuRef} className="relative shrink-0">
+        <div ref={menuRef} className="relative shrink-0 self-start">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
             aria-label="Options"
           >
-            <MoreVertical className="h-4 w-4" />
+            <MoreVertical className="h-5 w-5" />
           </button>
           {open && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+            <div className="absolute right-0 top-full z-30 mt-1 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-border bg-card shadow-lg">
               <button
                 onClick={() => {
                   setOpen(false);
@@ -280,7 +283,7 @@ function HistoryRow({ workout }: { workout: EnrichedWorkout }) {
               <button
                 onClick={() => {
                   setOpen(false);
-                  if (confirm(`Supprimer "${workout.name}" ?`)) delMut.mutate();
+                  setConfirmDel(true);
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
               >
@@ -291,6 +294,19 @@ function HistoryRow({ workout }: { workout: EnrichedWorkout }) {
         </div>
       </div>
       {edit && <RenameDialog workout={workout} onClose={() => setEdit(false)} />}
+      {confirmDel && (
+        <ConfirmDialog
+          title="Supprimer la séance ?"
+          message={`"${stripTrailingDate(workout.name)}" sera définitivement supprimée. Cette action est irréversible.`}
+          confirmLabel="Supprimer"
+          destructive
+          onConfirm={() => {
+            setConfirmDel(false);
+            delMut.mutate();
+          }}
+          onCancel={() => setConfirmDel(false)}
+        />
+      )}
     </>
   );
 }

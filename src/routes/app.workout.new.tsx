@@ -12,6 +12,8 @@ import { useLastPerf } from "@/hooks/useLastPerf";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
 import { formatCompact } from "@/lib/formatNumber";
 import { saveDraftLocal, clearDraftLocal } from "@/lib/workoutDraft";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MessageSquare } from "lucide-react";
 
 const searchSchema = z.object({
   routineId: z.string().optional(),
@@ -47,6 +49,10 @@ function NewWorkoutPage() {
   // ID Supabase du brouillon (workouts.status='draft'), créé à la 1re modif.
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId ?? null);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [openNoteFor, setOpenNoteFor] = useState<string | null>(null);
 
   // Auto-nom : "Premier exo – dd/MM/yyyy" si l'utilisateur n'a pas saisi de nom
   useEffect(() => {
@@ -197,7 +203,68 @@ function NewWorkoutPage() {
   const byExercise = lastPerfs?.byExercise ?? {};
   const bySet = lastPerfs?.bySet ?? {};
 
-  // ───── Auto-save brouillon (Supabase + localStorage) ─────
+  // ───── Auto-validation : toute série avec poids>0 ET reps>0 est marquée done.
+  useEffect(() => {
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((ex) => ({
+        ...ex,
+        sets: ex.sets.map((s) => {
+          if (!s.done && s.weight > 0 && s.reps > 0) {
+            changed = true;
+            return { ...s, done: true };
+          }
+          return s;
+        }),
+      }));
+      return changed ? next : prev;
+    });
+  }, [items]);
+
+  const hasFilledSet = useMemo(
+    () => items.some((e) => e.sets.some((s) => s.weight > 0 && s.reps > 0)),
+    [items],
+  );
+
+  // ───── Notes par exercice : hydratation depuis Supabase ─────
+  const notesSourceId = workoutId ?? draftId ?? currentDraftId ?? null;
+  useEffect(() => {
+    if (!notesSourceId) return;
+    let cancel = false;
+    supabase
+      .from("workout_exercise_notes")
+      .select("exercise_id, note")
+      .eq("workout_id", notesSourceId)
+      .then(({ data }) => {
+        if (cancel || !data) return;
+        const map: Record<string, string> = {};
+        data.forEach((r) => {
+          map[r.exercise_id as string] = (r.note as string) ?? "";
+        });
+        setNotes((prev) => ({ ...map, ...prev }));
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [notesSourceId]);
+
+  const persistNotes = useCallback(
+    async (wId: string) => {
+      // Stratégie simple : delete all puis re-insert des non-vides.
+      await supabase.from("workout_exercise_notes").delete().eq("workout_id", wId);
+      const entries = Object.entries(notes).filter(([, v]) => v.trim().length > 0);
+      if (entries.length === 0) return;
+      await supabase.from("workout_exercise_notes").insert(
+        entries.map(([exercise_id, note]) => ({
+          workout_id: wId,
+          exercise_id,
+          note: note.slice(0, 200),
+        })),
+      );
+    },
+    [notes],
+  );
+
   // Désactivé en mode édition (workoutId déjà existant et completed).
   const isDraftMode = !isEdit;
   const finishedRef = useRef(false);
@@ -255,6 +322,7 @@ function NewWorkoutPage() {
     if (rows.length > 0) {
       await supabase.from("workout_sets").insert(rows);
     }
+    await persistNotes(wId);
 
     saveDraftLocal({
       workoutId: wId,
@@ -265,7 +333,7 @@ function NewWorkoutPage() {
       items,
       updatedAt: new Date().toISOString(),
     });
-  }, [user, isDraftMode, items, name, startedAt, currentDraftId, routineId]);
+  }, [user, isDraftMode, items, name, startedAt, currentDraftId, routineId, persistNotes]);
 
   // débounce 1.5s sur changement + interval 30s
   useEffect(() => {
@@ -385,6 +453,7 @@ function NewWorkoutPage() {
         const { error: e2 } = await supabase.from("workout_sets").insert(rows);
         if (e2) throw e2;
       }
+      await persistNotes(wId);
       return wId;
     },
     onSuccess: () => {
@@ -635,6 +704,42 @@ function NewWorkoutPage() {
               >
                 <Plus className="h-3.5 w-3.5" /> Ajouter une série
               </button>
+
+              {/* Note de l'exercice */}
+              {openNoteFor === ex.exercise_id ? (
+                <div className="mt-2">
+                  <textarea
+                    autoFocus
+                    maxLength={200}
+                    placeholder="Note sur cet exercice…"
+                    value={notes[ex.exercise_id] ?? ""}
+                    onChange={(e) =>
+                      setNotes((n) => ({ ...n, [ex.exercise_id]: e.target.value.slice(0, 200) }))
+                    }
+                    onBlur={() => setOpenNoteFor(null)}
+                    className="w-full min-w-0 resize-none rounded-md border border-input bg-background px-2 py-2 text-xs focus:border-primary focus:outline-none"
+                    rows={2}
+                  />
+                  <p className="mt-1 text-right text-[10px] text-muted-foreground">
+                    {(notes[ex.exercise_id] ?? "").length}/200
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setOpenNoteFor(ex.exercise_id)}
+                  className={`mt-2 flex items-center gap-1 text-[11px] font-semibold ${
+                    notes[ex.exercise_id]?.trim()
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {notes[ex.exercise_id]?.trim()
+                    ? notes[ex.exercise_id]
+                    : "Ajouter une note"}
+                </button>
+              )}
             </div>
           );
         })}
@@ -669,10 +774,13 @@ function NewWorkoutPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-end">
           <button
             onClick={() => {
-              if (totalDoneSets === 0 && !isEdit) {
-                if (!confirm("Aucune série validée. Terminer quand même ?")) return;
+              if (!hasFilledSet) {
+                toast.error(
+                  "Aucune série enregistrée — ajoute au moins une série avec un poids et des répétitions avant de terminer.",
+                );
+                return;
               }
-              finishMut.mutate();
+              setShowFinishDialog(true);
             }}
             disabled={finishMut.isPending}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-gradient-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-glow disabled:opacity-50 md:w-auto"
@@ -688,8 +796,7 @@ function NewWorkoutPage() {
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-card">
             <h2 className="text-lg font-bold">Séance en cours</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Veux-tu vraiment quitter ? Ta progression est sauvegardée en brouillon
-              et tu pourras la reprendre plus tard.
+              Que veux-tu faire ?
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <button
@@ -699,20 +806,67 @@ function NewWorkoutPage() {
                 Continuer la séance
               </button>
               <button
-                onClick={handleKeepDraft}
-                className="w-full rounded-md border border-border py-2.5 text-sm font-semibold"
+                onClick={() => {
+                  if (!hasFilledSet) {
+                    toast.error(
+                      "Aucune série enregistrée — ajoute au moins une série avec un poids et des répétitions avant de mettre en brouillon.",
+                    );
+                    return;
+                  }
+                  handleKeepDraft();
+                }}
+                className="w-full rounded-md border border-border py-2.5 text-sm font-semibold hover:bg-secondary"
               >
-                Quitter et garder le brouillon
+                Mettre en brouillon
               </button>
               <button
-                onClick={handleAbandon}
+                onClick={() => {
+                  setShowLeaveDialog(false);
+                  setShowAbandonConfirm(true);
+                }}
                 className="w-full rounded-md py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10"
               >
-                Abandonner la séance
+                Abandonner
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {showAbandonConfirm && (
+        <ConfirmDialog
+          title="Es-tu sûr ?"
+          message="Cette action est irréversible. Tous les exercices et séries de cette séance seront supprimés."
+          confirmLabel="Abandonner"
+          cancelLabel="Retour"
+          destructive
+          onConfirm={() => {
+            setShowAbandonConfirm(false);
+            handleAbandon();
+          }}
+          onCancel={() => {
+            setShowAbandonConfirm(false);
+            setShowLeaveDialog(true);
+          }}
+        />
+      )}
+
+      {showFinishDialog && (
+        <ConfirmDialog
+          title={isEdit ? "Enregistrer les modifications ?" : "Terminer la séance ?"}
+          message={
+            isEdit
+              ? "Les modifications seront enregistrées."
+              : "La séance sera enregistrée dans ton historique."
+          }
+          confirmLabel={isEdit ? "Enregistrer" : "Terminer et enregistrer"}
+          cancelLabel="Annuler"
+          onConfirm={() => {
+            setShowFinishDialog(false);
+            finishMut.mutate();
+          }}
+          onCancel={() => setShowFinishDialog(false)}
+        />
       )}
     </div>
   );

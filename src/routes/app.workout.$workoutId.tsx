@@ -36,6 +36,22 @@ function WorkoutDetailPage() {
     },
   });
 
+  const { data: notes = {} } = useQuery({
+    queryKey: ["workout-notes", workoutId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workout_exercise_notes")
+        .select("exercise_id, note")
+        .eq("workout_id", workoutId);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((r) => {
+        map[r.exercise_id as string] = (r.note as string) ?? "";
+      });
+      return map;
+    },
+  });
+
   if (isLoading) return <div className="text-sm text-muted-foreground">Chargement…</div>;
   if (!data) return <div>Introuvable</div>;
 
@@ -105,6 +121,7 @@ function WorkoutDetailPage() {
             displayName={g.displayName}
             baseName={g.baseName}
             sets={g.sets}
+            note={notes[exerciseId] ?? ""}
             onUpdated={() => {
               qc.invalidateQueries({ queryKey: ["workout", workoutId] });
               qc.invalidateQueries({ queryKey: ["exercises"] });
@@ -122,6 +139,7 @@ function ExerciseBlock({
   displayName,
   baseName,
   sets,
+  note,
   onUpdated,
 }: {
   workoutId: string;
@@ -129,6 +147,7 @@ function ExerciseBlock({
   displayName: string;
   baseName: string;
   sets: Array<{ id: string; weight: number | string; reps: number | string }>;
+  note: string;
   onUpdated: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -146,6 +165,12 @@ function ExerciseBlock({
           <Pencil className="h-3.5 w-3.5" />
         </button>
       </div>
+      {note?.trim() && (
+        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-border/50 bg-secondary/40 p-2 text-xs text-muted-foreground">
+          <span aria-hidden>💬</span>
+          <span className="min-w-0 break-words">{note}</span>
+        </p>
+      )}
       <div className="mt-3 space-y-1">
         {sets.map((s, i) => (
           <div
