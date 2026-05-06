@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { formatCompact } from "@/lib/formatNumber";
 import { withDateSuffix, stripTrailingDate } from "@/lib/workoutName";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/app/history")({
   component: HistoryPage,
