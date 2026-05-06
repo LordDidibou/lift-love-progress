@@ -747,10 +747,13 @@ function NewWorkoutPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-end">
           <button
             onClick={() => {
-              if (totalDoneSets === 0 && !isEdit) {
-                if (!confirm("Aucune série validée. Terminer quand même ?")) return;
+              if (!hasFilledSet) {
+                toast.error(
+                  "Aucune série enregistrée — ajoute au moins une série avec un poids et des répétitions avant de terminer.",
+                );
+                return;
               }
-              finishMut.mutate();
+              setShowFinishDialog(true);
             }}
             disabled={finishMut.isPending}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-gradient-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-glow disabled:opacity-50 md:w-auto"
