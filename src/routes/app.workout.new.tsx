@@ -462,6 +462,7 @@ function NewWorkoutPage() {
         const { error: e2 } = await supabase.from("workout_sets").insert(rows);
         if (e2) throw e2;
       }
+      await persistNotes(wId);
       return wId;
     },
     onSuccess: () => {
