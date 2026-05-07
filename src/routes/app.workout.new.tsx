@@ -268,6 +268,7 @@ function NewWorkoutPage() {
   // Désactivé en mode édition (workoutId déjà existant et completed).
   const isDraftMode = !isEdit;
   const finishedRef = useRef(false);
+  const isCompletingRef = useRef(false);
   const saveDraft = useCallback(async () => {
     if (!user || !isDraftMode || finishedRef.current) return;
     if (items.length === 0) return; // rien à sauvegarder
@@ -458,6 +459,7 @@ function NewWorkoutPage() {
     },
     onSuccess: () => {
       finishedRef.current = true;
+      isCompletingRef.current = true;
       clearDraftLocal();
       toast.success(isEdit ? "Séance mise à jour" : "Séance enregistrée 💪");
       qc.invalidateQueries({ queryKey: ["workouts"] });
@@ -472,7 +474,10 @@ function NewWorkoutPage() {
   // Garde de navigation : si brouillon non vide non terminé, on demande confirmation
   const dirty = isDraftMode && items.length > 0 && !finishedRef.current;
   const { proceed, reset, status } = useBlocker({
-    shouldBlockFn: () => dirty,
+    shouldBlockFn: () => {
+      if (isCompletingRef.current || finishedRef.current) return false;
+      return dirty;
+    },
     withResolver: true,
   });
   useEffect(() => {
@@ -863,6 +868,7 @@ function NewWorkoutPage() {
           cancelLabel="Annuler"
           onConfirm={() => {
             setShowFinishDialog(false);
+            isCompletingRef.current = true;
             finishMut.mutate();
           }}
           onCancel={() => setShowFinishDialog(false)}
