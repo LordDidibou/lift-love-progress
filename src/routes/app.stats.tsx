@@ -683,7 +683,7 @@ function ExerciseDetailView({
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(v: number) => [`${v} ${unit}`, labelMap[metric]]}
+              formatter={(v: unknown) => [`${v} ${unit}`, labelMap[metric]]}
             />
             <Line
               type="monotone"
@@ -964,7 +964,7 @@ function RoutineTab({
                     borderRadius: 8,
                     fontSize: 12,
                   }}
-                  formatter={(v: number) => [`${v} kg`, "Volume"]}
+                  formatter={(v: unknown) => [`${v} kg`, "Volume"]}
                 />
                 <Line
                   type="monotone"
