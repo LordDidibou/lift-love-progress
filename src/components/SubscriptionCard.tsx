@@ -6,7 +6,6 @@ import {
   Pencil,
   Check,
   X,
-  TrendingUp,
 } from "lucide-react";
 import { format, parseISO, startOfYear, getMonth, getDaysInYear, differenceInCalendarDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,9 +16,8 @@ import { DecimalInput } from "@/components/DecimalInput";
 type Settings = {
   monthlyPrice: number;
   yearlyPrice: number;
-  renewedAt: string; // début du cycle mensuel
+  renewedAt: string; // date d'ancrage du cycle (le jour est utilisé chaque mois)
   targetPerSession: number;
-  soloSessionPrice: number; // 0 = non défini
 };
 
 const STORAGE_KEY = "subscription-settings-v2";
@@ -29,7 +27,6 @@ const defaults: Settings = {
   yearlyPrice: 480,
   renewedAt: format(new Date(), "yyyy-MM-dd"),
   targetPerSession: 5,
-  soloSessionPrice: 15,
 };
 
 function loadSettings(): Settings {
@@ -37,7 +34,6 @@ function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      // migration v1 → v2
       const old = localStorage.getItem("subscription-settings-v1");
       if (old) {
         const parsed = JSON.parse(old);
@@ -52,7 +48,10 @@ function loadSettings(): Settings {
       }
       return defaults;
     }
-    return { ...defaults, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    // strip ancien champ soloSessionPrice s'il existe
+    const { soloSessionPrice: _omit, ...rest } = parsed;
+    return { ...defaults, ...rest };
   } catch {
     return defaults;
   }
@@ -63,12 +62,6 @@ function fmtEuro(n: number, decimals = 2): string {
 }
 
 type Status = "green" | "orange" | "red";
-function statusFromRatio(pricePerSession: number | null, target: number): Status {
-  if (pricePerSession === null) return "red";
-  if (pricePerSession <= target) return "green";
-  if (pricePerSession <= target * 1.34) return "orange"; // ~75% du seuil atteint
-  return "red";
-}
 
 const STATUS_COLOR: Record<Status, string> = {
   green: "text-success",
@@ -87,9 +80,27 @@ const STATUS_DOT: Record<Status, string> = {
 };
 const STATUS_LABEL: Record<Status, string> = {
   green: "Rentabilisé",
-  orange: "En cours",
+  orange: "En bonne voie",
   red: "Non rentabilisé",
 };
+
+/** Calcule le début de la période mensuelle en cours à partir du jour de renouvellement. */
+function computeCurrentPeriodStart(renewedAtISO: string, today: Date): Date {
+  const anchor = parseISO(renewedAtISO);
+  const renewalDay = anchor.getDate();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  // dernier jour du mois courant pour borner le jour si besoin (ex : 31 en février)
+  const lastDayThisMonth = new Date(y, m + 1, 0).getDate();
+  const dayThisMonth = Math.min(renewalDay, lastDayThisMonth);
+  const thisMonthRenewal = new Date(y, m, dayThisMonth);
+
+  if (today >= thisMonthRenewal) return thisMonthRenewal;
+
+  const lastDayPrevMonth = new Date(y, m, 0).getDate();
+  const dayPrevMonth = Math.min(renewalDay, lastDayPrevMonth);
+  return new Date(y, m - 1, dayPrevMonth);
+}
 
 export function SubscriptionCard() {
   const { user } = useAuth();
@@ -101,23 +112,30 @@ export function SubscriptionCard() {
     setSettings(loadSettings());
   }, []);
 
-  // ── Séances depuis le renouvellement (mois) ──
+  const today = new Date();
+  const periodStart = useMemo(
+    () => computeCurrentPeriodStart(settings.renewedAt, today),
+    [settings.renewedAt, today.toDateString()],
+  );
+  const periodStartISO = format(periodStart, "yyyy-MM-dd");
+
+  // ── Séances de la période en cours (mois) ──
   const { data: monthSessions = 0 } = useQuery({
-    queryKey: ["sub-month-sessions", user?.id, settings.renewedAt],
+    queryKey: ["sub-month-sessions", user?.id, periodStartISO],
     enabled: !!user,
     queryFn: async () => {
       const { count, error } = await supabase
         .from("workouts")
         .select("id", { count: "exact", head: true })
         .eq("status", "completed")
-        .gte("started_at", `${settings.renewedAt}T00:00:00`);
+        .gte("started_at", `${periodStartISO}T00:00:00`);
       if (error) throw error;
       return count ?? 0;
     },
   });
 
   // ── Séances de l'année en cours ──
-  const yearStart = format(startOfYear(new Date()), "yyyy-MM-dd");
+  const yearStart = format(startOfYear(today), "yyyy-MM-dd");
   const { data: yearSessions = 0 } = useQuery({
     queryKey: ["sub-year-sessions", user?.id, yearStart],
     enabled: !!user,
@@ -142,19 +160,13 @@ export function SubscriptionCard() {
   const monthProgress =
     monthBreakeven > 0 ? Math.min(1, monthSessions / monthBreakeven) : 0;
   const monthStatus: Status = useMemo(() => {
-    if (monthSessions >= monthBreakeven && monthBreakeven > 0) return "green";
+    if (monthBreakeven > 0 && monthSessions >= monthBreakeven) return "green";
     if (monthProgress >= 0.75) return "orange";
     return "red";
   }, [monthSessions, monthBreakeven, monthProgress]);
 
-  const monthSavings =
-    settings.soloSessionPrice > 0 && monthSessions > 0
-      ? Math.max(0, monthSessions * settings.soloSessionPrice - settings.monthlyPrice)
-      : 0;
-
   // ── Calculs annuels ──
-  const today = new Date();
-  const monthsElapsed = getMonth(today) + (today.getDate() / 31); // approx fractionné
+  const monthsElapsed = getMonth(today) + (today.getDate() / 31);
   const avgPerMonth = monthsElapsed > 0 ? yearSessions / monthsElapsed : 0;
   const daysIntoYear = differenceInCalendarDays(today, startOfYear(today)) + 1;
   const totalDaysInYear = getDaysInYear(today);
@@ -171,7 +183,6 @@ export function SubscriptionCard() {
   const yearProgress =
     yearBreakeven > 0 ? Math.min(1, yearSessions / yearBreakeven) : 0;
   const yearStatus: Status = useMemo(() => {
-    // Au prorata du temps écoulé dans l'année
     const expected = yearBreakeven * (daysIntoYear / totalDaysInYear);
     if (yearSessions >= expected && yearBreakeven > 0) return "green";
     if (expected > 0 && yearSessions >= expected * 0.75) return "orange";
@@ -189,7 +200,6 @@ export function SubscriptionCard() {
       yearlyPrice: Math.max(0, Number(draft.yearlyPrice) || 0),
       renewedAt: draft.renewedAt || defaults.renewedAt,
       targetPerSession: Math.max(0.01, Number(draft.targetPerSession) || defaults.targetPerSession),
-      soloSessionPrice: Math.max(0, Number(draft.soloSessionPrice) || 0),
     };
     setSettings(clean);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
@@ -265,28 +275,19 @@ export function SubscriptionCard() {
                 onChange={(e) => setDraft((d) => ({ ...d, renewedAt: e.target.value }))}
                 className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
               />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Le jour de cette date sert d'ancrage chaque mois.
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Objectif €/séance
-                </label>
-                <DecimalInput
-                  value={draft.targetPerSession}
-                  onValueChange={(v) => setDraft((d) => ({ ...d, targetPerSession: v }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Séance à l'unité (€)
-                </label>
-                <DecimalInput
-                  value={draft.soloSessionPrice}
-                  onValueChange={(v) => setDraft((d) => ({ ...d, soloSessionPrice: v }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
-                />
-              </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Objectif €/séance
+              </label>
+              <DecimalInput
+                value={draft.targetPerSession}
+                onValueChange={(v) => setDraft((d) => ({ ...d, targetPerSession: v }))}
+                className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+              />
             </div>
             <div className="flex gap-2 pt-1">
               <button
@@ -319,7 +320,7 @@ export function SubscriptionCard() {
             </div>
             <div className="col-span-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
-              Renouvellement : {format(parseISO(settings.renewedAt), "d MMMM yyyy", { locale: fr })}
+              Renouvellement : le {format(parseISO(settings.renewedAt), "d", { locale: fr })} de chaque mois
               <span className="ml-auto">
                 Objectif : {fmtEuro(settings.targetPerSession)} / séance
               </span>
@@ -333,22 +334,12 @@ export function SubscriptionCard() {
           {/* ──────────────── CE MOIS-CI ──────────────── */}
           <PeriodCard
             title="Ce mois-ci"
-            subtitle={`Depuis le ${format(parseISO(settings.renewedAt), "d MMMM", { locale: fr })}`}
+            subtitle={`Depuis le ${format(periodStart, "d MMMM yyyy", { locale: fr })}`}
             sessions={monthSessions}
             pricePerSession={monthPricePerSession}
             breakeven={monthBreakeven}
             progress={monthProgress}
             status={monthStatus}
-            extra={
-              <>
-                {monthSavings > 0 && (
-                  <p className="mt-2 flex items-center gap-1.5 text-xs text-success">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    Tu économises {fmtEuro(monthSavings, 0)} vs séances à l'unité
-                  </p>
-                )}
-              </>
-            }
           />
 
           {/* ──────────────── CETTE ANNÉE ──────────────── */}
@@ -427,8 +418,10 @@ function PeriodCard({
         <p className={`font-display text-5xl font-bold ${STATUS_COLOR[status]}`}>
           {pricePerSession !== null ? fmtEuro(pricePerSession) : "—"}
         </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {sessions} séance{sessions > 1 ? "s" : ""}
+        </p>
 
-        {/* Barre de progression */}
         <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-background">
           <div
             className={`h-full ${STATUS_BAR[status]} transition-all`}
