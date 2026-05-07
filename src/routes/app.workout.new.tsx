@@ -474,7 +474,10 @@ function NewWorkoutPage() {
   // Garde de navigation : si brouillon non vide non terminé, on demande confirmation
   const dirty = isDraftMode && items.length > 0 && !finishedRef.current;
   const { proceed, reset, status } = useBlocker({
-    shouldBlockFn: () => dirty,
+    shouldBlockFn: () => {
+      if (isCompletingRef.current || finishedRef.current) return false;
+      return dirty;
+    },
     withResolver: true,
   });
   useEffect(() => {
