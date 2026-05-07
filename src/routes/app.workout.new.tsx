@@ -268,6 +268,7 @@ function NewWorkoutPage() {
   // Désactivé en mode édition (workoutId déjà existant et completed).
   const isDraftMode = !isEdit;
   const finishedRef = useRef(false);
+  const isCompletingRef = useRef(false);
   const saveDraft = useCallback(async () => {
     if (!user || !isDraftMode || finishedRef.current) return;
     if (items.length === 0) return; // rien à sauvegarder
