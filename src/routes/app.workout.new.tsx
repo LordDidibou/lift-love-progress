@@ -868,6 +868,7 @@ function NewWorkoutPage() {
           cancelLabel="Annuler"
           onConfirm={() => {
             setShowFinishDialog(false);
+            isCompletingRef.current = true;
             finishMut.mutate();
           }}
           onCancel={() => setShowFinishDialog(false)}
