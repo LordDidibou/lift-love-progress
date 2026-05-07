@@ -458,6 +458,7 @@ function NewWorkoutPage() {
     },
     onSuccess: () => {
       finishedRef.current = true;
+      isCompletingRef.current = true;
       clearDraftLocal();
       toast.success(isEdit ? "Séance mise à jour" : "Séance enregistrée 💪");
       qc.invalidateQueries({ queryKey: ["workouts"] });
