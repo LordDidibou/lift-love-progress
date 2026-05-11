@@ -626,7 +626,7 @@ function NewWorkoutPage() {
                     <ChevronDown className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => setItems((s) => s.filter((_, i) => i !== exIdx))}
+                    onClick={() => removeExercise(exIdx)}
                     className="rounded p-1 text-muted-foreground hover:text-destructive"
                     aria-label="Retirer"
                   >
