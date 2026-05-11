@@ -48,6 +48,7 @@ function RoutinesPage() {
 
   const { data: routines = [] } = useQuery({
     queryKey: ["routines", user?.id],
+    staleTime: 5 * 60_000,
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -390,6 +391,7 @@ function RoutineBuilder({
 
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises-pickable-routine"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const [{ data: exs, error }, { data: hidden }] = await Promise.all([
         supabase.from("exercises").select("id, name, muscle_group").order("name"),

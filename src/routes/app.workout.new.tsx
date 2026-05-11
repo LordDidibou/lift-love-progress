@@ -858,6 +858,7 @@ function ExercisePicker({
   const [q, setQ] = useState("");
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises-pickable"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const [{ data: exs, error }, { data: hidden }] = await Promise.all([
         supabase.from("exercises").select("id, name, muscle_group, equipment").order("name"),
