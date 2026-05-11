@@ -646,103 +646,23 @@ function NewWorkoutPage() {
               <div className="mt-1 space-y-1.5">
                 {ex.sets.map((set, sIdx) => {
                   const prev = setsPrev[sIdx + 1];
-                  // Placeholder seulement si valeur 0 ET pas encore validé
-                  const showWeightPh = !set.done && set.weight === 0 && prev !== undefined;
-                  const repsPh = prev?.reps ?? set.targetReps;
-                  const showRepsPh = !set.done && set.reps === 0 && repsPh !== undefined && repsPh > 0;
                   return (
-                    <div
+                    <SetRow
                       key={set.id}
-                      className={`grid min-w-0 grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 rounded-md p-1 sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2 sm:p-1.5 ${
-                        set.done ? "bg-primary/10" : ""
-                      }`}
-                    >
-                      <span className="text-center text-sm font-bold text-muted-foreground">
-                        {sIdx + 1}
-                      </span>
-                      <DecimalInput
-                        value={set.weight}
-                        placeholder={showWeightPh ? `${prev!.weight}` : ""}
-                        onValueChange={(v) =>
-                          setItems((s) =>
-                            s.map((x, i) =>
-                              i === exIdx
-                                ? {
-                                    ...x,
-                                    sets: x.sets.map((y, j) => (j === sIdx ? { ...y, weight: v } : y)),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
-                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
-                      />
-                      <DecimalInput
-                        value={set.reps}
-                        placeholder={showRepsPh ? `${repsPh}` : ""}
-                        onValueChange={(v) =>
-                          setItems((s) =>
-                            s.map((x, i) =>
-                              i === exIdx
-                                ? {
-                                    ...x,
-                                    sets: x.sets.map((y, j) =>
-                                      j === sIdx ? { ...y, reps: v } : y,
-                                    ),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
-                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
-                      />
-                      <button
-                        onClick={() =>
-                          setItems((s) =>
-                            s.map((x, i) =>
-                              i === exIdx
-                                ? {
-                                    ...x,
-                                    sets: x.sets.map((y, j) => (j === sIdx ? { ...y, done: !y.done } : y)),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
-                        className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
-                          set.done
-                            ? "bg-primary text-primary-foreground"
-                            : "border border-border text-muted-foreground"
-                        }`}
-                        aria-label={set.done ? "Annuler validation" : "Valider"}
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                    </div>
+                      exIdx={exIdx}
+                      sIdx={sIdx}
+                      set={set}
+                      prevWeight={prev?.weight}
+                      prevReps={prev?.reps}
+                      targetReps={set.targetReps}
+                      onUpdateField={updateSetField}
+                      onToggleDone={toggleSetDone}
+                    />
                   );
                 })}
               </div>
               <button
-                onClick={() =>
-                  setItems((s) =>
-                    s.map((x, i) =>
-                      i === exIdx
-                        ? {
-                            ...x,
-                            sets: [
-                              ...x.sets,
-                              {
-                                id: uid(),
-                                reps: x.sets[x.sets.length - 1]?.reps ?? 10,
-                                weight: x.sets[x.sets.length - 1]?.weight ?? 0,
-                                done: false,
-                              },
-                            ],
-                          }
-                        : x,
-                    ),
-                  )
-                }
+                onClick={() => addSetTo(exIdx)}
                 className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-2 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-primary"
               >
                 <Plus className="h-3.5 w-3.5" /> Ajouter une série
