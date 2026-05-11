@@ -918,3 +918,72 @@ function ExercisePicker({
     </div>
   );
 }
+
+type SetRowProps = {
+  exIdx: number;
+  sIdx: number;
+  set: LocalSet;
+  prevWeight?: number;
+  prevReps?: number;
+  targetReps?: number;
+  onUpdateField: (exIdx: number, sIdx: number, field: "weight" | "reps", value: number) => void;
+  onToggleDone: (exIdx: number, sIdx: number) => void;
+};
+
+const SetRow = memo(function SetRow({
+  exIdx,
+  sIdx,
+  set,
+  prevWeight,
+  prevReps,
+  targetReps,
+  onUpdateField,
+  onToggleDone,
+}: SetRowProps) {
+  const showWeightPh = !set.done && set.weight === 0 && prevWeight !== undefined;
+  const repsPh = prevReps ?? targetReps;
+  const showRepsPh = !set.done && set.reps === 0 && repsPh !== undefined && repsPh > 0;
+
+  const onWeight = useCallback(
+    (v: number) => onUpdateField(exIdx, sIdx, "weight", v),
+    [exIdx, sIdx, onUpdateField],
+  );
+  const onReps = useCallback(
+    (v: number) => onUpdateField(exIdx, sIdx, "reps", v),
+    [exIdx, sIdx, onUpdateField],
+  );
+  const onToggle = useCallback(() => onToggleDone(exIdx, sIdx), [exIdx, sIdx, onToggleDone]);
+
+  return (
+    <div
+      className={`grid min-w-0 grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 rounded-md p-1 sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2 sm:p-1.5 ${
+        set.done ? "bg-primary/10" : ""
+      }`}
+    >
+      <span className="text-center text-sm font-bold text-muted-foreground">{sIdx + 1}</span>
+      <DecimalInput
+        value={set.weight}
+        placeholder={showWeightPh ? `${prevWeight}` : ""}
+        onValueChange={onWeight}
+        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
+      />
+      <DecimalInput
+        value={set.reps}
+        placeholder={showRepsPh ? `${repsPh}` : ""}
+        onValueChange={onReps}
+        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
+      />
+      <button
+        onClick={onToggle}
+        className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+          set.done
+            ? "bg-primary text-primary-foreground"
+            : "border border-border text-muted-foreground"
+        }`}
+        aria-label={set.done ? "Annuler validation" : "Valider"}
+      >
+        <Check className="h-4 w-4" />
+      </button>
+    </div>
+  );
+});
