@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X, Search, Check, Trash2, Flame, Calendar, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -203,23 +203,61 @@ function NewWorkoutPage() {
   const byExercise = lastPerfs?.byExercise ?? {};
   const bySet = lastPerfs?.bySet ?? {};
 
-  // ───── Auto-validation : toute série avec poids>0 ET reps>0 est marquée done.
-  useEffect(() => {
-    setItems((prev) => {
-      let changed = false;
-      const next = prev.map((ex) => ({
-        ...ex,
-        sets: ex.sets.map((s) => {
-          if (!s.done && s.weight > 0 && s.reps > 0) {
-            changed = true;
-            return { ...s, done: true };
-          }
-          return s;
-        }),
-      }));
-      return changed ? next : prev;
-    });
-  }, [items]);
+  // Stable handlers — évitent les re-renders en cascade lors de la saisie
+  const updateSetField = useCallback(
+    (exIdx: number, sIdx: number, field: "weight" | "reps", value: number) => {
+      setItems((prev) =>
+        prev.map((x, i) =>
+          i !== exIdx
+            ? x
+            : {
+                ...x,
+                sets: x.sets.map((y, j) => {
+                  if (j !== sIdx) return y;
+                  const next = { ...y, [field]: value };
+                  // Auto-validation inline : poids>0 ET reps>0 → done
+                  if (!next.done && next.weight > 0 && next.reps > 0) next.done = true;
+                  return next;
+                }),
+              },
+        ),
+      );
+    },
+    [],
+  );
+
+  const toggleSetDone = useCallback((exIdx: number, sIdx: number) => {
+    setItems((prev) =>
+      prev.map((x, i) =>
+        i !== exIdx
+          ? x
+          : {
+              ...x,
+              sets: x.sets.map((y, j) => (j === sIdx ? { ...y, done: !y.done } : y)),
+            },
+      ),
+    );
+  }, []);
+
+  const addSetTo = useCallback((exIdx: number) => {
+    setItems((prev) =>
+      prev.map((x, i) => {
+        if (i !== exIdx) return x;
+        const last = x.sets[x.sets.length - 1];
+        return {
+          ...x,
+          sets: [
+            ...x.sets,
+            { id: uid(), reps: last?.reps ?? 10, weight: last?.weight ?? 0, done: false },
+          ],
+        };
+      }),
+    );
+  }, []);
+
+  const removeExercise = useCallback((exIdx: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== exIdx));
+  }, []);
 
   const hasFilledSet = useMemo(
     () => items.some((e) => e.sets.some((s) => s.weight > 0 && s.reps > 0)),
@@ -588,7 +626,7 @@ function NewWorkoutPage() {
                     <ChevronDown className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => setItems((s) => s.filter((_, i) => i !== exIdx))}
+                    onClick={() => removeExercise(exIdx)}
                     className="rounded p-1 text-muted-foreground hover:text-destructive"
                     aria-label="Retirer"
                   >
@@ -608,103 +646,23 @@ function NewWorkoutPage() {
               <div className="mt-1 space-y-1.5">
                 {ex.sets.map((set, sIdx) => {
                   const prev = setsPrev[sIdx + 1];
-                  // Placeholder seulement si valeur 0 ET pas encore validé
-                  const showWeightPh = !set.done && set.weight === 0 && prev !== undefined;
-                  const repsPh = prev?.reps ?? set.targetReps;
-                  const showRepsPh = !set.done && set.reps === 0 && repsPh !== undefined && repsPh > 0;
                   return (
-                    <div
+                    <SetRow
                       key={set.id}
-                      className={`grid min-w-0 grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 rounded-md p-1 sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2 sm:p-1.5 ${
-                        set.done ? "bg-primary/10" : ""
-                      }`}
-                    >
-                      <span className="text-center text-sm font-bold text-muted-foreground">
-                        {sIdx + 1}
-                      </span>
-                      <DecimalInput
-                        value={set.weight}
-                        placeholder={showWeightPh ? `${prev!.weight}` : ""}
-                        onValueChange={(v) =>
-                          setItems((s) =>
-                            s.map((x, i) =>
-                              i === exIdx
-                                ? {
-                                    ...x,
-                                    sets: x.sets.map((y, j) => (j === sIdx ? { ...y, weight: v } : y)),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
-                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
-                      />
-                      <DecimalInput
-                        value={set.reps}
-                        placeholder={showRepsPh ? `${repsPh}` : ""}
-                        onValueChange={(v) =>
-                          setItems((s) =>
-                            s.map((x, i) =>
-                              i === exIdx
-                                ? {
-                                    ...x,
-                                    sets: x.sets.map((y, j) =>
-                                      j === sIdx ? { ...y, reps: v } : y,
-                                    ),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
-                        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
-                      />
-                      <button
-                        onClick={() =>
-                          setItems((s) =>
-                            s.map((x, i) =>
-                              i === exIdx
-                                ? {
-                                    ...x,
-                                    sets: x.sets.map((y, j) => (j === sIdx ? { ...y, done: !y.done } : y)),
-                                  }
-                                : x,
-                            ),
-                          )
-                        }
-                        className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
-                          set.done
-                            ? "bg-primary text-primary-foreground"
-                            : "border border-border text-muted-foreground"
-                        }`}
-                        aria-label={set.done ? "Annuler validation" : "Valider"}
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                    </div>
+                      exIdx={exIdx}
+                      sIdx={sIdx}
+                      set={set}
+                      prevWeight={prev?.weight}
+                      prevReps={prev?.reps}
+                      targetReps={set.targetReps}
+                      onUpdateField={updateSetField}
+                      onToggleDone={toggleSetDone}
+                    />
                   );
                 })}
               </div>
               <button
-                onClick={() =>
-                  setItems((s) =>
-                    s.map((x, i) =>
-                      i === exIdx
-                        ? {
-                            ...x,
-                            sets: [
-                              ...x.sets,
-                              {
-                                id: uid(),
-                                reps: x.sets[x.sets.length - 1]?.reps ?? 10,
-                                weight: x.sets[x.sets.length - 1]?.weight ?? 0,
-                                done: false,
-                              },
-                            ],
-                          }
-                        : x,
-                    ),
-                  )
-                }
+                onClick={() => addSetTo(exIdx)}
                 className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-2 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-primary"
               >
                 <Plus className="h-3.5 w-3.5" /> Ajouter une série
@@ -900,6 +858,7 @@ function ExercisePicker({
   const [q, setQ] = useState("");
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises-pickable"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const [{ data: exs, error }, { data: hidden }] = await Promise.all([
         supabase.from("exercises").select("id, name, muscle_group, equipment").order("name"),
@@ -960,3 +919,72 @@ function ExercisePicker({
     </div>
   );
 }
+
+type SetRowProps = {
+  exIdx: number;
+  sIdx: number;
+  set: LocalSet;
+  prevWeight?: number;
+  prevReps?: number;
+  targetReps?: number;
+  onUpdateField: (exIdx: number, sIdx: number, field: "weight" | "reps", value: number) => void;
+  onToggleDone: (exIdx: number, sIdx: number) => void;
+};
+
+const SetRow = memo(function SetRow({
+  exIdx,
+  sIdx,
+  set,
+  prevWeight,
+  prevReps,
+  targetReps,
+  onUpdateField,
+  onToggleDone,
+}: SetRowProps) {
+  const showWeightPh = !set.done && set.weight === 0 && prevWeight !== undefined;
+  const repsPh = prevReps ?? targetReps;
+  const showRepsPh = !set.done && set.reps === 0 && repsPh !== undefined && repsPh > 0;
+
+  const onWeight = useCallback(
+    (v: number) => onUpdateField(exIdx, sIdx, "weight", v),
+    [exIdx, sIdx, onUpdateField],
+  );
+  const onReps = useCallback(
+    (v: number) => onUpdateField(exIdx, sIdx, "reps", v),
+    [exIdx, sIdx, onUpdateField],
+  );
+  const onToggle = useCallback(() => onToggleDone(exIdx, sIdx), [exIdx, sIdx, onToggleDone]);
+
+  return (
+    <div
+      className={`grid min-w-0 grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_36px] items-center gap-1.5 rounded-md p-1 sm:grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_40px] sm:gap-2 sm:p-1.5 ${
+        set.done ? "bg-primary/10" : ""
+      }`}
+    >
+      <span className="text-center text-sm font-bold text-muted-foreground">{sIdx + 1}</span>
+      <DecimalInput
+        value={set.weight}
+        placeholder={showWeightPh ? `${prevWeight}` : ""}
+        onValueChange={onWeight}
+        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
+      />
+      <DecimalInput
+        value={set.reps}
+        placeholder={showRepsPh ? `${repsPh}` : ""}
+        onValueChange={onReps}
+        className="w-full min-w-0 rounded-md border border-input bg-background px-1.5 py-2 text-center text-sm focus:border-primary focus:outline-none"
+      />
+      <button
+        onClick={onToggle}
+        className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+          set.done
+            ? "bg-primary text-primary-foreground"
+            : "border border-border text-muted-foreground"
+        }`}
+        aria-label={set.done ? "Annuler validation" : "Valider"}
+      >
+        <Check className="h-4 w-4" />
+      </button>
+    </div>
+  );
+});

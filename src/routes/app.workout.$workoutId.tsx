@@ -227,6 +227,7 @@ function ExercisePickerSheet({
 
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("exercises")
@@ -239,6 +240,7 @@ function ExercisePickerSheet({
 
   const { data: hiddenIds = [] } = useQuery({
     queryKey: ["hidden-exercises", user?.id],
+    staleTime: 5 * 60_000,
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.from("hidden_exercises").select("exercise_id");

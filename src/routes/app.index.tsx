@@ -19,6 +19,7 @@ function HomePage() {
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
+    staleTime: 5 * 60_000,
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase

@@ -92,6 +92,7 @@ function StatsPage() {
 
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises"],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.from("exercises").select("id, name, muscle_group").order("name");
       if (error) throw error;
@@ -101,6 +102,7 @@ function StatsPage() {
 
   const { data: routines = [] } = useQuery({
     queryKey: ["routines-list", user?.id],
+    staleTime: 5 * 60_000,
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
