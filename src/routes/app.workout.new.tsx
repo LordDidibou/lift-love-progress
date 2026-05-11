@@ -203,23 +203,61 @@ function NewWorkoutPage() {
   const byExercise = lastPerfs?.byExercise ?? {};
   const bySet = lastPerfs?.bySet ?? {};
 
-  // ───── Auto-validation : toute série avec poids>0 ET reps>0 est marquée done.
-  useEffect(() => {
-    setItems((prev) => {
-      let changed = false;
-      const next = prev.map((ex) => ({
-        ...ex,
-        sets: ex.sets.map((s) => {
-          if (!s.done && s.weight > 0 && s.reps > 0) {
-            changed = true;
-            return { ...s, done: true };
-          }
-          return s;
-        }),
-      }));
-      return changed ? next : prev;
-    });
-  }, [items]);
+  // Stable handlers — évitent les re-renders en cascade lors de la saisie
+  const updateSetField = useCallback(
+    (exIdx: number, sIdx: number, field: "weight" | "reps", value: number) => {
+      setItems((prev) =>
+        prev.map((x, i) =>
+          i !== exIdx
+            ? x
+            : {
+                ...x,
+                sets: x.sets.map((y, j) => {
+                  if (j !== sIdx) return y;
+                  const next = { ...y, [field]: value };
+                  // Auto-validation inline : poids>0 ET reps>0 → done
+                  if (!next.done && next.weight > 0 && next.reps > 0) next.done = true;
+                  return next;
+                }),
+              },
+        ),
+      );
+    },
+    [],
+  );
+
+  const toggleSetDone = useCallback((exIdx: number, sIdx: number) => {
+    setItems((prev) =>
+      prev.map((x, i) =>
+        i !== exIdx
+          ? x
+          : {
+              ...x,
+              sets: x.sets.map((y, j) => (j === sIdx ? { ...y, done: !y.done } : y)),
+            },
+      ),
+    );
+  }, []);
+
+  const addSetTo = useCallback((exIdx: number) => {
+    setItems((prev) =>
+      prev.map((x, i) => {
+        if (i !== exIdx) return x;
+        const last = x.sets[x.sets.length - 1];
+        return {
+          ...x,
+          sets: [
+            ...x.sets,
+            { id: uid(), reps: last?.reps ?? 10, weight: last?.weight ?? 0, done: false },
+          ],
+        };
+      }),
+    );
+  }, []);
+
+  const removeExercise = useCallback((exIdx: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== exIdx));
+  }, []);
 
   const hasFilledSet = useMemo(
     () => items.some((e) => e.sets.some((s) => s.weight > 0 && s.reps > 0)),
